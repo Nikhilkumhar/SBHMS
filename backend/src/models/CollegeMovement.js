@@ -45,6 +45,13 @@ const collegeMovementSchema = new mongoose.Schema(
       trim: true,
     },
 
+
+    // True when the system closed an unfinished OUT from a previous day
+    autoClosed: {
+      type: Boolean,
+      default: false,
+    },
+
     // Manual correction details
     isCorrected: {
       type: Boolean,

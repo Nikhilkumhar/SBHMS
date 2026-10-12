@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { portalBase } from "../../utils/roleHome";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../services/api";
 
@@ -117,7 +118,7 @@ function StudentDetails() {
 
             <button
               onClick={() =>
-                navigate("/admin/students")
+                navigate(`${portalBase()}/students`)
               }
               className="mb-5 text-sm font-semibold text-blue-600 hover:text-blue-800"
             >

@@ -1,6 +1,10 @@
-import express from "express";
 import dotenv from "dotenv";
+dotenv.config();
+
+import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
 
 import connectDB from "./src/config/db.js";
 
@@ -16,29 +20,57 @@ import collegeScanRoutes from "./src/routes/collegeScanRoutes.js";
 import attendanceRoutes from "./src/routes/attendanceRoutes.js";
 import staffRoutes from "./src/routes/staffRoutes.js";
 
-dotenv.config();
+// ================= STARTUP CHECKS =================
+
+if (!process.env.JWT_SECRET) {
+  console.error("JWT_SECRET is not defined in .env ❌");
+  process.exit(1);
+}
 
 const app = express();
 
 const PORT = process.env.PORT || 5000;
+const isProduction = process.env.NODE_ENV === "production";
 
-// ================= DATABASE =================
-connectDB();
+// Needed when deployed behind a proxy (Render, Railway, Nginx...)
+// so rate limiting sees the real user IP
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
 
-// ================= MIDDLEWARE =================
+// ================= SECURITY + LOGGING =================
 
-// Allow frontend to communicate with backend
+app.use(helmet());
+
+if (!isProduction) {
+  app.use(morgan("dev"));
+}
+
+// ================= CORS =================
+
+const allowedOrigins = (
+  process.env.CLIENT_URLS ||
+  "http://localhost:5173,http://127.0.0.1:5173"
+)
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-    ],
+    origin: (origin, callback) => {
+      // Allow tools without an origin (Postman, curl) and listed websites
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "100kb" }));
 
 // ================= HEALTH CHECK =================
 
@@ -48,8 +80,6 @@ app.get("/api/health", (req, res) => {
     message: "SBHMS API is running 🚀",
   });
 });
-
-// ================= ROOT =================
 
 app.get("/", (req, res) => {
   res.json({
@@ -61,28 +91,62 @@ app.get("/", (req, res) => {
 // ================= API ROUTES =================
 
 app.use("/api/auth", authRoutes);
-
 app.use("/api/test", testRoutes);
-
 app.use("/api/students", studentRoutes);
-
 app.use("/api/hostels", hostelRoutes);
-
 app.use("/api/rooms", roomRoutes);
-
 app.use("/api/gate-passes", gatePassRoutes);
-
 app.use("/api/college-movements", collegeMovementRoutes);
-
 app.use("/api/student-qr", studentQrRoutes);
-
 app.use("/api/college", collegeScanRoutes);
-
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/staff", staffRoutes);
 
-// ================= SERVER =================
+// ================= 404 FOR UNKNOWN API ROUTES =================
 
-app.listen(PORT, () => {
-  console.log(`🚀 SBHMS Server running on port ${PORT}`);
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route not found: ${req.method} ${req.originalUrl}`,
+  });
 });
+
+// ================= GLOBAL ERROR HANDLER =================
+
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err.message);
+
+  if (err.message === "Not allowed by CORS") {
+    return res.status(403).json({
+      success: false,
+      message: "Origin not allowed",
+    });
+  }
+
+  // Bad JSON body from the client
+  if (err.type === "entity.parse.failed") {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid JSON in request body",
+    });
+  }
+
+  res.status(500).json({
+    success: false,
+    message: "Internal server error",
+  });
+});
+
+// ================= START SERVER =================
+// Connect to the database FIRST, then accept requests
+
+const startServer = async () => {
+  await connectDB();
+
+  app.listen(PORT, () => {
+    console.log(`🚀 SBHMS Server running on port ${PORT}`);
+  });
+};
+
+startServer();

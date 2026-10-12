@@ -1,3 +1,5 @@
+import mongoose from "mongoose";
+import { closeStaleCollegeMovements } from "../services/collegeMovementService.js";
 import Attendance from "../models/attendanceModel.js";
 import Student from "../models/studentModel.js";
 import Hostel from "../models/hostelModel.js";
@@ -32,12 +34,28 @@ export const markAttendance = async (req, res) => {
       });
     }
 
+    if (
+      !mongoose.isValidObjectId(studentId) ||
+      !mongoose.isValidObjectId(hostelId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid studentId or hostelId",
+      });
+    }
+
     const student = await Student.findById(studentId);
 
     if (!student) {
       return res.status(404).json({
         success: false,
         message: "Student not found",
+      });
+    }
+    if (student.status === "LEFT") {
+      return res.status(400).json({
+        success: false,
+        message: "This student has left the hostel",
       });
     }
 
@@ -47,6 +65,14 @@ export const markAttendance = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Hostel not found",
+      });
+    }
+
+    // Student must belong to the selected hostel
+    if (student.hostelId?.toString() !== hostelId.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: "This student does not belong to the selected hostel",
       });
     }
 
@@ -127,16 +153,16 @@ export const markAttendance = async (req, res) => {
 
 
 // ======================================================
-// MARK BULK ATTENDANCE
+// MARK BULK ATTENDANCE (save / update)
 // ======================================================
+// Safe to call many times for the same hostel + date:
+//  - students with no record yet  -> a new record is created
+//  - students already saved       -> their record is updated
+// So a warden can mark the forgotten student later, or correct a mistake.
 
 export const markBulkAttendance = async (req, res) => {
   try {
-    const {
-      hostelId,
-      date,
-      attendance,
-    } = req.body;
+    const { hostelId, date, attendance } = req.body;
 
     if (!hostelId || !date || !attendance) {
       return res.status(400).json({
@@ -149,6 +175,13 @@ export const markBulkAttendance = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Attendance must be a non-empty array",
+      });
+    }
+
+    if (!mongoose.isValidObjectId(hostelId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid hostel ID",
       });
     }
 
@@ -176,124 +209,120 @@ export const markBulkAttendance = async (req, res) => {
       if (!item.studentId || !item.status) {
         return res.status(400).json({
           success: false,
-          message:
-            "Every attendance item must contain studentId and status",
+          message: "Every attendance item must contain studentId and status",
+        });
+      }
+
+      if (!mongoose.isValidObjectId(item.studentId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid student ID in attendance list",
         });
       }
 
       if (!["PRESENT", "ABSENT"].includes(item.status)) {
         return res.status(400).json({
           success: false,
-          message:
-            "Attendance status must be PRESENT or ABSENT",
+          message: "Attendance status must be PRESENT or ABSENT",
         });
       }
     }
 
-    const studentIds = attendance.map(
-      (item) => item.studentId
-    );
+    const studentIds = attendance.map((item) => item.studentId);
 
-    const uniqueStudentIds = new Set(studentIds);
-
-    if (uniqueStudentIds.size !== studentIds.length) {
+    if (new Set(studentIds).size !== studentIds.length) {
       return res.status(400).json({
         success: false,
-        message:
-          "Duplicate studentId found in attendance request",
+        message: "Duplicate studentId found in attendance request",
       });
     }
 
-    const students = await Student.find({
-      _id: { $in: studentIds },
-    });
+    const students = await Student.find({ _id: { $in: studentIds } });
 
     if (students.length !== studentIds.length) {
       return res.status(404).json({
         success: false,
-        message:
-          "One or more students were not found",
+        message: "One or more students were not found",
       });
     }
 
     const studentsFromOtherHostel = students.filter(
-      (student) =>
-        student.hostelId?.toString() !== hostelId.toString()
+      (student) => student.hostelId?.toString() !== hostelId.toString()
     );
 
     if (studentsFromOtherHostel.length > 0) {
       return res.status(400).json({
         success: false,
-        message:
-          "One or more students do not belong to the selected hostel",
-        studentIds: studentsFromOtherHostel.map(
-          (student) => student._id
-        ),
+        message: "One or more students do not belong to the selected hostel",
+        studentIds: studentsFromOtherHostel.map((student) => student._id),
       });
     }
 
-    const existingAttendance = await Attendance.find({
-      studentId: { $in: studentIds },
-      date: attendanceDate,
-    });
-
-    if (existingAttendance.length > 0) {
+    if (students.some((student) => student.status === "LEFT")) {
       return res.status(400).json({
         success: false,
-        message:
-          "Attendance already exists for one or more students on this date",
-        existingStudentIds: existingAttendance.map(
-          (item) => item.studentId
-        ),
+        message: "One or more students have left the hostel",
       });
     }
 
-    const records = attendance.map((item) => ({
-      studentId: item.studentId,
-      hostelId,
-      date: attendanceDate,
-      status: item.status,
-      markedBy: req.user.userId,
-      markedAt: new Date(),
-      remarks: item.remarks || undefined,
-    }));
+    // Create new records, or update the ones that already exist
+    const now = new Date();
 
-    const createdAttendance = await Attendance.insertMany(
-      records
-    );
+    const operations = attendance.map((item) => {
+      const remarks =
+        typeof item.remarks === "string" ? item.remarks.trim() : "";
 
-    res.status(201).json({
+      const update = {
+        $set: {
+          hostelId,
+          status: item.status,
+          markedBy: req.user.userId,
+          markedAt: now,
+        },
+      };
+
+      if (remarks) {
+        update.$set.remarks = remarks;
+      } else {
+        update.$unset = { remarks: "" };
+      }
+
+      return {
+        updateOne: {
+          filter: { studentId: item.studentId, date: attendanceDate },
+          update,
+          upsert: true,
+        },
+      };
+    });
+
+    const result = await Attendance.bulkWrite(operations);
+
+    const newlyMarked = result.upsertedCount || 0;
+    const updated = attendance.length - newlyMarked;
+
+    res.status(200).json({
       success: true,
-      message: "Bulk attendance marked successfully",
+      message:
+        updated > 0
+          ? `Attendance saved (${newlyMarked} new, ${updated} updated)`
+          : `Attendance saved for ${newlyMarked} student${
+              newlyMarked === 1 ? "" : "s"
+            }`,
       summary: {
-        totalMarked: createdAttendance.length,
-        present: createdAttendance.filter(
-          (item) => item.status === "PRESENT"
-        ).length,
-        absent: createdAttendance.filter(
-          (item) => item.status === "ABSENT"
-        ).length,
+        totalMarked: attendance.length,
+        newlyMarked,
+        updated,
+        present: attendance.filter((item) => item.status === "PRESENT").length,
+        absent: attendance.filter((item) => item.status === "ABSENT").length,
       },
-      attendance: createdAttendance,
     });
   } catch (error) {
-    console.error(
-      "Mark bulk attendance error:",
-      error
-    );
-
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Attendance already exists for one or more students on this date",
-      });
-    }
+    console.error("Mark bulk attendance error:", error);
 
     res.status(500).json({
       success: false,
-      message:
-        "Server error while marking bulk attendance",
+      message: "Server error while saving attendance",
     });
   }
 };
@@ -305,6 +334,7 @@ export const markBulkAttendance = async (req, res) => {
 
 export const getAttendanceRoster = async (req, res) => {
   try {
+    await closeStaleCollegeMovements();
     const { date, hostelId } = req.query;
 
     if (!hostelId) {
@@ -350,6 +380,7 @@ export const getAttendanceRoster = async (req, res) => {
 
     const students = await Student.find({
       hostelId,
+      status: { $ne: "LEFT" },
     })
       .populate({
         path: "userId",
@@ -536,8 +567,8 @@ export const getAttendanceRoster = async (req, res) => {
           isMarketOutside
             ? "MARKET_OUT"
             : isCollegeOutside
-            ? "COLLEGE_OUT"
-            : "HOSTEL",
+              ? "COLLEGE_OUT"
+              : "HOSTEL",
       });
     }
 
@@ -731,35 +762,70 @@ export const getAttendanceByDate = async (req, res) => {
 // GET STUDENT ATTENDANCE
 // ======================================================
 
-export const getStudentAttendance = async (
-  req,
-  res
-) => {
+export const getStudentAttendance = async (req, res) => {
   try {
-    const { studentId } = req.params;
+    let { studentId } = req.params;
 
-    const attendance = await Attendance.find({
-      studentId,
-    })
+    // A student can only see THEIR OWN attendance
+    if (req.user.role === "STUDENT") {
+      const myProfile = await Student.findOne({
+        userId: req.user.userId,
+      }).select("_id");
+
+      if (!myProfile) {
+        return res.status(404).json({
+          success: false,
+          message: "Student profile not found",
+        });
+      }
+
+      if (studentId !== myProfile._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: "You can view only your own attendance",
+        });
+      }
+    }
+
+    // Warden / Admin: check the ID is valid
+    if (!mongoose.isValidObjectId(studentId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid student ID",
+      });
+    }
+
+    const attendance = await Attendance.find({ studentId })
       .populate("hostelId", "name code")
       .populate("markedBy", "name email role")
       .sort({ date: -1 });
 
+    const present = attendance.filter(
+      (item) => item.status === "PRESENT"
+    ).length;
+
+    const absent = attendance.length - present;
+
     res.status(200).json({
       success: true,
       count: attendance.length,
+      summary: {
+        total: attendance.length,
+        present,
+        absent,
+        percentage:
+          attendance.length > 0
+            ? Math.round((present / attendance.length) * 100)
+            : 0,
+      },
       attendance,
     });
   } catch (error) {
-    console.error(
-      "Get student attendance error:",
-      error
-    );
+    console.error("Get student attendance error:", error);
 
     res.status(500).json({
       success: false,
-      message:
-        "Server error while fetching student attendance",
+      message: "Server error while fetching student attendance",
     });
   }
 };

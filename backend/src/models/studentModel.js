@@ -59,6 +59,16 @@ const studentSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    // ACTIVE = living in hostel, LEFT = removed (history is kept)
+    status: {
+      type: String,
+      enum: ["ACTIVE", "LEFT"],
+      default: "ACTIVE",
+    },
+
+    leftAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

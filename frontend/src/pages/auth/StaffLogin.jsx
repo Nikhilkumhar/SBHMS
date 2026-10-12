@@ -19,20 +19,36 @@ function StaffLogin() {
       ...formData,
       [e.target.name]: e.target.value,
     });
+
+    setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    setError("");
-    setLoading(true);
+    if (!formData.staffId || !formData.password) {
+      setError("Please enter your Staff ID and password.");
+      return;
+    }
 
     try {
-      const response = await api.post("/api/auth/staff-login", formData);
+      setLoading(true);
+      setError("");
+
+      const response = await api.post(
+        "/api/auth/staff-login",
+        formData
+      );
 
       if (response.data.success) {
-        localStorage.setItem("token", response.data.token);
-        localStorage.setItem("user", JSON.stringify(response.data.user));
+        // IMPORTANT:
+        // sessionStorage keeps this login separate for each browser tab.
+        sessionStorage.setItem("token", response.data.token);
+
+        sessionStorage.setItem(
+          "user",
+          JSON.stringify(response.data.user)
+        );
 
         const role = response.data.user.role;
 
@@ -49,6 +65,8 @@ function StaffLogin() {
         }
       }
     } catch (err) {
+      console.error("Staff login error:", err);
+
       setError(
         err.response?.data?.message ||
           "Login failed. Please check your Staff ID and password."
@@ -59,136 +77,106 @@ function StaffLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-5xl bg-white rounded-2xl shadow-xl overflow-hidden grid md:grid-cols-2">
-        
-        {/* Left Side */}
-        <div className="hidden md:block relative min-h-[600px]">
-          <img
-            src="/src/assets/hostel-building.jpg"
-            alt="Sarala Birla University Hostel"
-            className="absolute inset-0 w-full h-full object-cover"
-          />
+    <div className="min-h-screen bg-gray-100">
+      <div className="flex min-h-screen items-center justify-center px-4 py-8">
+        <div className="grid w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-xl md:grid-cols-2">
 
-          <div className="absolute inset-0 bg-blue-950/75" />
-
-          <div className="relative z-10 h-full flex flex-col justify-center px-10 text-white">
-            <p className="text-blue-200 font-medium mb-3">
-              SBHMS
-            </p>
-
-            <h1 className="text-4xl font-bold leading-tight">
-              Staff & Admin
-              <br />
-              Portal
-            </h1>
-
-            <p className="mt-5 text-blue-100 leading-relaxed">
-              Secure access for administrators, wardens, guards,
-              and maintenance staff.
-            </p>
-
-            <div className="mt-8 space-y-3 text-sm text-blue-100">
-              <p>✓ Hostel Management</p>
-              <p>✓ Student Management</p>
-              <p>✓ Gate Pass Management</p>
-              <p>✓ Attendance & Reports</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side */}
-        <div className="p-8 sm:p-10 md:p-12 flex flex-col justify-center">
-          <div className="mb-8">
-            <button
-              type="button"
-              onClick={() => navigate("/login")}
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium mb-6"
-            >
-              ← Back to Login Selection
-            </button>
-
-            <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm font-medium mb-4">
-              Staff Portal
-            </div>
-
-            <h2 className="text-3xl font-bold text-slate-900">
-              Welcome Back
-            </h2>
-
-            <p className="mt-2 text-slate-500">
-              Sign in using your Staff ID.
-            </p>
+          {/* Left Side - Image */}
+          <div className="hidden md:block">
+            <img
+              src={hostelImage}
+              alt="Sarala Birla University Hostel"
+              className="h-full w-full object-cover"
+            />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            
-            {/* Staff ID */}
-            <div>
-              <label
-                htmlFor="staffId"
-                className="block text-sm font-medium text-slate-700 mb-2"
-              >
-                Staff ID
-              </label>
+          {/* Right Side - Login */}
+          <div className="flex items-center justify-center p-8 sm:p-10">
+            <div className="w-full max-w-md">
 
-              <input
-                id="staffId"
-                type="text"
-                name="staffId"
-                value={formData.staffId}
-                onChange={handleChange}
-                placeholder="Enter your Staff ID"
-                required
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-              />
-            </div>
+              <div className="mb-8">
+                <h1 className="text-3xl font-bold text-gray-900">
+                  Staff Login
+                </h1>
 
-            {/* Password */}
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-slate-700 mb-2"
-              >
-                Password
-              </label>
-
-              <input
-                id="password"
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Enter your password"
-                required
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-              />
-            </div>
-
-            {/* Error */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                {error}
+                <p className="mt-2 text-gray-600">
+                  Login to access the SBHMS staff dashboard.
+                </p>
               </div>
-            )}
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 rounded-lg transition"
-            >
-              {loading ? "Signing in..." : "Sign In"}
-            </button>
-          </form>
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-5"
+              >
+                {/* Staff ID */}
+                <div>
+                  <label
+                    htmlFor="staffId"
+                    className="mb-2 block text-sm font-medium text-gray-700"
+                  >
+                    Staff ID
+                  </label>
 
-          <div className="mt-8 pt-6 border-t border-slate-200 text-center">
-            <p className="text-xs text-slate-500">
-              Smart Birla Hostel Management System
-            </p>
-            <p className="text-xs text-slate-400 mt-1">
-              Authorized staff access only
-            </p>
+                  <input
+                    id="staffId"
+                    name="staffId"
+                    type="text"
+                    value={formData.staffId}
+                    onChange={handleChange}
+                    placeholder="Enter your Staff ID"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label
+                    htmlFor="password"
+                    className="mb-2 block text-sm font-medium text-gray-700"
+                  >
+                    Password
+                  </label>
+
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="Enter your password"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+                {/* Error */}
+                {error && (
+                  <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+                    {error}
+                  </div>
+                )}
+
+                {/* Login Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading
+                    ? "Logging in..."
+                    : "Login"}
+                </button>
+              </form>
+
+              {/* Back */}
+              <button
+                type="button"
+                onClick={() => navigate("/")}
+                className="mt-6 w-full text-center text-sm text-gray-500 hover:text-blue-600"
+              >
+                ← Back to Login Options
+              </button>
+
+            </div>
           </div>
         </div>
       </div>

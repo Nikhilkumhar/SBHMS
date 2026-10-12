@@ -43,7 +43,7 @@ function HostelManagement() {
       setLoading(true);
       setError("");
 
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
 
       const config = {
         headers: {
@@ -234,7 +234,7 @@ function HostelManagement() {
       setSubmittingHostel(true);
       setError("");
 
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
 
       const response = await api.post(
         "/api/hostels",
@@ -330,7 +330,7 @@ function HostelManagement() {
       setSubmittingRoom(true);
       setError("");
 
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
 
       const response = await api.post(
         "/api/rooms",

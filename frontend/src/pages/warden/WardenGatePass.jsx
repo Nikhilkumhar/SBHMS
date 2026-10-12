@@ -16,11 +16,11 @@ function WardenGatePass() {
   const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const storedUser = localStorage.getItem("user");
+    const token = sessionStorage.getItem("token");
+    const storedUser = sessionStorage.getItem("user");
 
     if (!token || !storedUser) {
-      navigate("/login");
+      navigate("/staff-login");
       return;
     }
 
@@ -33,9 +33,11 @@ function WardenGatePass() {
       }
     } catch (error) {
       console.error("Invalid user data:", error);
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      navigate("/login");
+
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
+
+      navigate("/staff-login");
       return;
     }
 
@@ -47,7 +49,12 @@ function WardenGatePass() {
       setLoading(true);
       setError("");
 
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
+
+      if (!token) {
+        navigate("/staff-login");
+        return;
+      }
 
       const response = await api.get("/api/gate-passes", {
         headers: {
@@ -60,9 +67,10 @@ function WardenGatePass() {
       console.error("Warden gate pass error:", error);
 
       if (error.response?.status === 401) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        navigate("/login");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("user");
+
+        navigate("/staff-login");
         return;
       }
 
@@ -81,7 +89,7 @@ function WardenGatePass() {
       setError("");
       setSuccess("");
 
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
 
       const response = await api.put(
         `/api/gate-passes/${passId}/parent-permission`,
@@ -117,7 +125,7 @@ function WardenGatePass() {
       setError("");
       setSuccess("");
 
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
 
       const response = await api.put(
         `/api/gate-passes/${passId}/approve`,
@@ -172,7 +180,7 @@ function WardenGatePass() {
       setError("");
       setSuccess("");
 
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
 
       const response = await api.put(
         `/api/gate-passes/${rejectPassId}/reject`,
@@ -192,6 +200,7 @@ function WardenGatePass() {
       );
 
       closeRejectBox();
+
       await fetchGatePasses();
     } catch (error) {
       console.error("Reject gate pass error:", error);
@@ -206,8 +215,9 @@ function WardenGatePass() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
+
     navigate("/");
   };
 
@@ -250,6 +260,7 @@ function WardenGatePass() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-indigo-50">
       {/* Navbar */}
+
       <nav className="bg-white border-b border-blue-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 lg:px-10 h-20 flex items-center justify-between">
           <button
@@ -289,8 +300,10 @@ function WardenGatePass() {
       </nav>
 
       {/* Main */}
+
       <main className="max-w-7xl mx-auto px-6 lg:px-10 py-10">
         {/* Header */}
+
         <section className="mb-8">
           <p className="text-sm font-semibold text-blue-600">
             Warden Portal
@@ -307,6 +320,7 @@ function WardenGatePass() {
         </section>
 
         {/* Messages */}
+
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-5 py-4">
             <p className="text-sm font-medium text-red-700">
@@ -324,6 +338,7 @@ function WardenGatePass() {
         )}
 
         {/* Summary */}
+
         <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <SummaryCard
             title="Total Applications"
@@ -355,6 +370,7 @@ function WardenGatePass() {
         </section>
 
         {/* Applications */}
+
         <section>
           <div className="mb-5">
             <h3 className="text-xl font-bold text-slate-900">
@@ -410,6 +426,7 @@ function WardenGatePass() {
       </main>
 
       {/* Reject Modal */}
+
       {showRejectBox && (
         <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-5">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6">
@@ -503,6 +520,7 @@ function GatePassApplication({
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
       {/* Application Header */}
+
       <div className="px-6 py-5 border-b border-slate-100">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
           <div className="flex items-start gap-4">
@@ -546,6 +564,7 @@ function GatePassApplication({
       </div>
 
       {/* Student Information */}
+
       <div className="p-6">
         <div className="mb-6">
           <h5 className="text-sm font-bold text-slate-900 mb-4">
@@ -605,6 +624,7 @@ function GatePassApplication({
         </div>
 
         {/* Parent Information */}
+
         <div className="border-t border-slate-100 pt-6 mb-6">
           <h5 className="text-sm font-bold text-slate-900 mb-4">
             Parent / Guardian Information
@@ -639,6 +659,7 @@ function GatePassApplication({
         </div>
 
         {/* Pass Information */}
+
         <div className="border-t border-slate-100 pt-6">
           <h5 className="text-sm font-bold text-slate-900 mb-4">
             Gate Pass Details
@@ -678,6 +699,7 @@ function GatePassApplication({
         </div>
 
         {/* Actions */}
+
         {isPending && (
           <div className="border-t border-slate-100 mt-6 pt-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -730,6 +752,7 @@ function GatePassApplication({
         )}
 
         {/* Approved Message */}
+
         {pass.status === "APPROVED" && (
           <div className="border-t border-slate-100 mt-6 pt-5">
             <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3">
@@ -746,6 +769,7 @@ function GatePassApplication({
         )}
 
         {/* Rejected Message */}
+
         {pass.status === "REJECTED" && (
           <div className="border-t border-slate-100 mt-6 pt-5">
             <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
@@ -790,16 +814,22 @@ function StatusBadge({ status }) {
   const styles = {
     PENDING:
       "bg-amber-50 text-amber-700 border-amber-200",
+
     APPROVED:
       "bg-blue-50 text-blue-700 border-blue-200",
+
     OUT:
       "bg-orange-50 text-orange-700 border-orange-200",
+
     RETURNED:
       "bg-green-50 text-green-700 border-green-200",
+
     REJECTED:
       "bg-red-50 text-red-700 border-red-200",
+
     EXPIRED:
       "bg-slate-100 text-slate-600 border-slate-200",
+
     CANCELLED:
       "bg-slate-100 text-slate-600 border-slate-200",
   };

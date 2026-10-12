@@ -1,14 +1,13 @@
 import crypto from "crypto";
 import Student from "../models/studentModel.js";
-
+import { startOfDayIST } from "../utils/time.js";
 
 // ==========================================
-// GENERATE DAILY STUDENT QR
+// GENERATE / GET TODAY'S STUDENT QR
 // ==========================================
 
 export const generateDailyStudentQR = async (req, res) => {
   try {
-    // Find student connected to logged-in user
     const student = await Student.findOne({
       userId: req.user.userId,
     });
@@ -20,14 +19,8 @@ export const generateDailyStudentQR = async (req, res) => {
       });
     }
 
-    // Get today's date
-    const today = new Date();
-
-    const startOfDay = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate()
-    );
+    // Midnight of today in India
+    const startOfDay = startOfDayIST();
 
     // If today's QR already exists, return it
     if (
@@ -43,7 +36,7 @@ export const generateDailyStudentQR = async (req, res) => {
       });
     }
 
-    // Generate new secure token
+    // Generate a new secure token for today
     const qrToken = crypto.randomBytes(32).toString("hex");
 
     student.qrToken = qrToken;

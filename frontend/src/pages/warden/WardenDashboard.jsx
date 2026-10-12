@@ -27,7 +27,13 @@ function WardenDashboard() {
       setLoading(true);
       setError("");
 
-      const token = localStorage.getItem("token");
+      // Get authentication from current browser tab
+      const token = sessionStorage.getItem("token");
+
+      if (!token) {
+        navigate("/staff-login");
+        return;
+      }
 
       const config = {
         headers: {
@@ -35,10 +41,18 @@ function WardenDashboard() {
         },
       };
 
-      const storedUser = localStorage.getItem("user");
+      const storedUser = sessionStorage.getItem("user");
 
       if (storedUser) {
-        setWarden(JSON.parse(storedUser));
+        try {
+          setWarden(JSON.parse(storedUser));
+        } catch (error) {
+          console.error("Invalid user session:", error);
+          sessionStorage.removeItem("token");
+          sessionStorage.removeItem("user");
+          navigate("/staff-login");
+          return;
+        }
       }
 
       /* ==========================================
@@ -165,6 +179,13 @@ function WardenDashboard() {
         error
       );
 
+      if (error.response?.status === 401) {
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("user");
+        navigate("/staff-login");
+        return;
+      }
+
       setError(
         error.response?.data?.message ||
           "Unable to load dashboard data."
@@ -179,8 +200,8 @@ function WardenDashboard() {
   ========================================== */
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
 
     navigate("/staff-login");
   };
@@ -195,7 +216,7 @@ function WardenDashboard() {
       description:
         "View hostel students and their details",
       icon: "👨‍🎓",
-      path: "/admin/students",
+      path: "/warden/students",
       active: true,
     },
     {
@@ -219,7 +240,7 @@ function WardenDashboard() {
       description:
         "Monitor student college OUT and IN",
       icon: "🎓",
-      path: "/admin/college-movement",
+      path: "/warden/college-movement",
       active: true,
     },
     {
@@ -264,14 +285,12 @@ function WardenDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-
       {/* ==========================================
           HEADER
       ========================================== */}
 
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-
           <div>
             <h1 className="text-2xl font-bold text-slate-900">
               SBHMS
@@ -283,7 +302,6 @@ function WardenDashboard() {
           </div>
 
           <div className="flex items-center gap-4">
-
             <div className="hidden text-right sm:block">
               <p className="text-sm font-semibold text-slate-900">
                 {warden?.name || "Warden"}
@@ -300,7 +318,6 @@ function WardenDashboard() {
             >
               Logout
             </button>
-
           </div>
         </div>
       </header>
@@ -310,13 +327,11 @@ function WardenDashboard() {
       ========================================== */}
 
       <main className="mx-auto max-w-7xl px-6 py-10">
-
         {/* ==========================================
             WELCOME
         ========================================== */}
 
         <section className="mb-10">
-
           <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-blue-600">
             WARDEN PORTAL
           </p>
@@ -329,7 +344,6 @@ function WardenDashboard() {
             Manage hostel students, attendance, gate passes
             and daily hostel operations from one place.
           </p>
-
         </section>
 
         {/* ==========================================
@@ -356,13 +370,10 @@ function WardenDashboard() {
         ========================================== */}
 
         <section className="mb-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-
           {/* TOTAL STUDENTS */}
 
           <div className="rounded-2xl border bg-white p-6 shadow-sm">
-
             <div className="mb-5 flex items-center justify-between">
-
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-xl">
                 👨‍🎓
               </div>
@@ -370,7 +381,6 @@ function WardenDashboard() {
               <span className="text-xs font-medium text-slate-400">
                 HOSTEL
               </span>
-
             </div>
 
             <p className="text-sm text-slate-500">
@@ -380,15 +390,12 @@ function WardenDashboard() {
             <p className="mt-1 text-3xl font-bold text-slate-900">
               {loading ? "..." : stats.students}
             </p>
-
           </div>
 
           {/* PENDING GATE PASSES */}
 
           <div className="rounded-2xl border bg-white p-6 shadow-sm">
-
             <div className="mb-5 flex items-center justify-between">
-
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-xl">
                 🚪
               </div>
@@ -396,7 +403,6 @@ function WardenDashboard() {
               <span className="text-xs font-medium text-slate-400">
                 REQUESTS
               </span>
-
             </div>
 
             <p className="text-sm text-slate-500">
@@ -406,15 +412,12 @@ function WardenDashboard() {
             <p className="mt-1 text-3xl font-bold text-slate-900">
               {loading ? "..." : stats.pendingGatePasses}
             </p>
-
           </div>
 
           {/* ATTENDANCE */}
 
           <div className="rounded-2xl border bg-white p-6 shadow-sm">
-
             <div className="mb-5 flex items-center justify-between">
-
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50 text-xl">
                 📋
               </div>
@@ -422,7 +425,6 @@ function WardenDashboard() {
               <span className="text-xs font-medium text-slate-400">
                 TODAY
               </span>
-
             </div>
 
             <p className="text-sm text-slate-500">
@@ -436,15 +438,12 @@ function WardenDashboard() {
             <p className="mt-1 text-xs text-slate-400">
               Present / Expected
             </p>
-
           </div>
 
           {/* COLLEGE */}
 
           <div className="rounded-2xl border bg-white p-6 shadow-sm">
-
             <div className="mb-5 flex items-center justify-between">
-
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-50 text-xl">
                 🎓
               </div>
@@ -452,7 +451,6 @@ function WardenDashboard() {
               <span className="text-xs font-medium text-slate-400">
                 COLLEGE
               </span>
-
             </div>
 
             <p className="text-sm text-slate-500">
@@ -462,9 +460,7 @@ function WardenDashboard() {
             <p className="mt-1 text-3xl font-bold text-slate-900">
               {loading ? "..." : stats.collegeOut}
             </p>
-
           </div>
-
         </section>
 
         {/* ==========================================
@@ -472,9 +468,7 @@ function WardenDashboard() {
         ========================================== */}
 
         <section>
-
           <div className="mb-5">
-
             <h3 className="text-xl font-bold text-slate-900">
               Warden Operations
             </h3>
@@ -482,13 +476,10 @@ function WardenDashboard() {
             <p className="mt-1 text-sm text-slate-500">
               Select an operation to manage hostel activities.
             </p>
-
           </div>
 
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-
             {menuItems.map((item) => (
-
               <button
                 key={item.title}
                 onClick={() => handleMenuClick(item)}
@@ -499,9 +490,7 @@ function WardenDashboard() {
                     : "hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
                 }`}
               >
-
                 <div className="mb-5 flex items-center justify-between">
-
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-2xl">
                     {item.icon}
                   </div>
@@ -511,7 +500,6 @@ function WardenDashboard() {
                       →
                     </span>
                   )}
-
                 </div>
 
                 <h4 className="text-lg font-bold text-slate-900">
@@ -527,13 +515,9 @@ function WardenDashboard() {
                     Coming soon
                   </p>
                 )}
-
               </button>
-
             ))}
-
           </div>
-
         </section>
 
         {/* ==========================================
@@ -541,11 +525,8 @@ function WardenDashboard() {
         ========================================== */}
 
         <section className="mt-10 rounded-2xl border bg-white p-6 shadow-sm">
-
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
             <div>
-
               <h3 className="font-bold text-slate-900">
                 Warden Access
               </h3>
@@ -553,21 +534,14 @@ function WardenDashboard() {
               <p className="mt-1 text-sm text-slate-500">
                 You are logged in as a hostel warden.
               </p>
-
             </div>
 
             <div className="inline-flex w-fit items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
-
               <span className="h-2 w-2 rounded-full bg-green-500" />
-
               Account Active
-
             </div>
-
           </div>
-
         </section>
-
       </main>
     </div>
   );

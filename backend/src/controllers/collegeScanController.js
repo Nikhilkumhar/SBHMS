@@ -1,7 +1,7 @@
-import crypto from "crypto";
 import Student from "../models/studentModel.js";
 import CollegeMovement from "../models/CollegeMovement.js";
-
+import { startOfDayIST, getISTMinutes } from "../utils/time.js";
+import { closeStaleCollegeMovements } from "../services/collegeMovementService.js";
 
 // ==========================================
 // SCAN STUDENT DAILY QR
@@ -11,20 +11,21 @@ export const scanStudentQR = async (req, res) => {
   try {
     const { qrToken } = req.body;
 
-    if (!qrToken) {
+    // Must be a plain text token (blocks injection tricks)
+    if (!qrToken || typeof qrToken !== "string") {
       return res.status(400).json({
         success: false,
         message: "QR token is required",
       });
     }
 
-    // ==========================================
-    // FIND STUDENT USING QR TOKEN
-    // ==========================================
+    // ------------------------------------------
+    // FIND STUDENT
+    // ------------------------------------------
 
     const student = await Student.findOne({
-      qrToken,
-    });
+      qrToken: qrToken.trim(),
+    }).populate("userId", "name isActive");
 
     if (!student) {
       return res.status(404).json({
@@ -33,22 +34,22 @@ export const scanStudentQR = async (req, res) => {
       });
     }
 
-    // ==========================================
-    // CHECK QR DATE
-    // ==========================================
+    if (!student.userId || !student.userId.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: "This student's account is inactive",
+      });
+    }
+
+    // ------------------------------------------
+    // QR MUST BE FROM TODAY (India date)
+    // ------------------------------------------
 
     const now = new Date();
 
-    const startOfToday = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    );
-
-    const qrDate = new Date(student.qrDate);
-
     const qrIsToday =
-      qrDate.getTime() === startOfToday.getTime();
+      student.qrDate &&
+      new Date(student.qrDate).getTime() === startOfDayIST(now).getTime();
 
     if (!qrIsToday) {
       return res.status(400).json({
@@ -57,40 +58,50 @@ export const scanStudentQR = async (req, res) => {
       });
     }
 
-    // ==========================================
-    // CHECK COLLEGE HOURS
-    // 8:00 AM - 5:00 PM
-    // ==========================================
+    // ------------------------------------------
+    // COLLEGE HOURS (India time)
+    // Default 8:00 - 17:00. Can be changed in .env:
+    // COLLEGE_START_HOUR=8   COLLEGE_END_HOUR=17
+    // ------------------------------------------
 
-    const currentMinutes =
-      now.getHours() * 60 + now.getMinutes();
+    const startHour = Number(process.env.COLLEGE_START_HOUR ?? 8);
+    const endHour = Number(process.env.COLLEGE_END_HOUR ?? 17);
 
-    const collegeStart = 8 * 60;  // 8:00 AM
-    const collegeEnd = 17 * 60;   // 5:00 PM
+    const currentMinutes = getISTMinutes(now);
 
     if (
-      currentMinutes < collegeStart ||
-      currentMinutes > collegeEnd
+      currentMinutes < startHour * 60 ||
+      currentMinutes > endHour * 60
     ) {
       return res.status(400).json({
         success: false,
-        message: "College movement is allowed only between 8:00 AM and 5:00 PM",
+        message: `College movement is allowed only between ${startHour}:00 and ${endHour}:00 (IST)`,
       });
     }
 
-    // ==========================================
-    // CHECK CURRENT MOVEMENT
-    // ==========================================
+    // ------------------------------------------
+    // CLOSE UNFINISHED OUT RECORDS FROM PREVIOUS DAYS
+    // ------------------------------------------
+
+    await closeStaleCollegeMovements();
+
+    // ------------------------------------------
+    // IS THE STUDENT CURRENTLY OUT?
+    // ------------------------------------------
 
     const activeMovement = await CollegeMovement.findOne({
       studentId: student._id,
       status: "OUT",
     }).sort({ outTime: -1 });
 
-    // ==========================================
-    // IF STUDENT IS CURRENTLY OUT → MARK IN
-    // ==========================================
+    const studentInfo = {
+      id: student._id,
+      name: student.userId.name,
+      sbuId: student.sbuId,
+      course: student.course,
+    };
 
+    // OUT -> mark IN
     if (activeMovement) {
       activeMovement.inTime = now;
       activeMovement.status = "IN";
@@ -102,19 +113,12 @@ export const scanStudentQR = async (req, res) => {
         success: true,
         action: "IN",
         message: "College IN recorded successfully",
-        student: {
-          id: student._id,
-          sbuId: student.sbuId,
-          course: student.course,
-        },
+        student: studentInfo,
         movement: activeMovement,
       });
     }
 
-    // ==========================================
-    // OTHERWISE → MARK OUT
-    // ==========================================
-
+    // Otherwise -> mark OUT
     const movement = await CollegeMovement.create({
       studentId: student._id,
       date: now,
@@ -127,14 +131,9 @@ export const scanStudentQR = async (req, res) => {
       success: true,
       action: "OUT",
       message: "College OUT recorded successfully",
-      student: {
-        id: student._id,
-        sbuId: student.sbuId,
-        course: student.course,
-      },
+      student: studentInfo,
       movement,
     });
-
   } catch (error) {
     console.error("Scan student QR error:", error);
 

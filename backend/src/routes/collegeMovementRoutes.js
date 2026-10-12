@@ -7,6 +7,7 @@ import {
   getStudentsCurrentlyOut,
   getCollegeDailyReport,
   correctCollegeMovement,
+  getMyCollegeMovements,
 } from "../controllers/collegeMovementController.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -14,7 +15,21 @@ import roleMiddleware from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
+// ======================================================
+// STUDENT - GET MY COLLEGE MOVEMENTS
+// ======================================================
+
+router.get(
+  "/my",
+  authMiddleware,
+  roleMiddleware("STUDENT"),
+  getMyCollegeMovements
+);
+
+// ======================================================
 // RECORD COLLEGE OUT
+// ======================================================
+
 router.post(
   "/out",
   authMiddleware,
@@ -22,7 +37,10 @@ router.post(
   recordCollegeOut
 );
 
+// ======================================================
 // RECORD COLLEGE IN
+// ======================================================
+
 router.post(
   "/in",
   authMiddleware,
@@ -30,7 +48,10 @@ router.post(
   recordCollegeIn
 );
 
+// ======================================================
 // GET ALL COLLEGE MOVEMENTS
+// ======================================================
+
 router.get(
   "/",
   authMiddleware,
@@ -38,7 +59,10 @@ router.get(
   getCollegeMovements
 );
 
+// ======================================================
 // GET STUDENTS CURRENTLY OUT
+// ======================================================
+
 router.get(
   "/currently-out",
   authMiddleware,
@@ -46,7 +70,10 @@ router.get(
   getStudentsCurrentlyOut
 );
 
+// ======================================================
 // GET COLLEGE DAILY REPORT
+// ======================================================
+
 router.get(
   "/daily-report",
   authMiddleware,
@@ -54,7 +81,10 @@ router.get(
   getCollegeDailyReport
 );
 
+// ======================================================
 // MANUAL COLLEGE MOVEMENT CORRECTION
+// ======================================================
+
 router.put(
   "/correct",
   authMiddleware,

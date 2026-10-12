@@ -7,13 +7,13 @@ import {
   getStudentById,
   updateStudent,
   deleteStudent,
+  resetStudentPassword,
 } from "../controllers/studentController.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
 import roleMiddleware from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
-
 
 // ================================================
 // STUDENT PROFILE
@@ -25,7 +25,6 @@ router.get(
   roleMiddleware("STUDENT"),
   getMyProfile
 );
-
 
 // ================================================
 // ADMIN / WARDEN STUDENT MANAGEMENT
@@ -45,12 +44,31 @@ router.get(
   getStudents
 );
 
+// ================================================
+// RESET STUDENT PASSWORD
+// ================================================
+
+router.put(
+  "/:id/reset-password",
+  authMiddleware,
+  roleMiddleware("ADMIN", "WARDEN"),
+  resetStudentPassword
+);
+
+// ================================================
+// GET STUDENT BY ID
+// ================================================
+
 router.get(
   "/:id",
   authMiddleware,
   roleMiddleware("ADMIN", "WARDEN"),
   getStudentById
 );
+
+// ================================================
+// UPDATE STUDENT
+// ================================================
 
 router.put(
   "/:id",
@@ -59,12 +77,15 @@ router.put(
   updateStudent
 );
 
+// ================================================
+// DELETE STUDENT
+// ================================================
+
 router.delete(
   "/:id",
   authMiddleware,
   roleMiddleware("ADMIN"),
   deleteStudent
 );
-
 
 export default router;

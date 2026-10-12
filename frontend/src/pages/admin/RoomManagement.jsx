@@ -33,7 +33,7 @@ function RoomManagement() {
       setLoading(true);
       setError("");
 
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
 
       const config = {
         headers: {
@@ -218,7 +218,7 @@ function RoomManagement() {
       setSubmitting(true);
       setError("");
 
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
 
       const response = await api.post(
         "/api/rooms",

@@ -25,7 +25,7 @@ function AttendanceManagement() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
 
   // ======================================================
   // FETCH HOSTELS

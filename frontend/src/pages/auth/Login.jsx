@@ -198,11 +198,11 @@ function Login() {
 
                 <div className="flex-1">
                   <h3 className="text-sm font-bold text-slate-900">
-                    Staff / Admin Login
+                    Warden / Guard Login
                   </h3>
 
                   <p className="text-xs text-slate-500 mt-1">
-                    Admin, Warden, Guard & Maintenance
+                     Warden, Guard & Maintenance
                   </p>
                 </div>
 

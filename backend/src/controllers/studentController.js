@@ -1,19 +1,22 @@
+import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
 import Student from "../models/studentModel.js";
-
 import User from "../models/userModel.js";
-
 import Hostel from "../models/hostelModel.js";
-
 import Room from "../models/roomModel.js";
-
+import GatePass from "../models/gatePassModel.js";
+import CollegeMovement from "../models/CollegeMovement.js";
 
 // =================================================
 // CREATE STUDENT
 // =================================================
 
 export const createStudent = async (req, res) => {
+  let reservedRoomId = null;
+  let createdUserId = null;
+  let completed = false;
+
   try {
     const {
       name,
@@ -29,7 +32,6 @@ export const createStudent = async (req, res) => {
       fatherMobile,
     } = req.body;
 
-    // Check required fields
     if (
       !name ||
       !sbuId ||
@@ -49,16 +51,30 @@ export const createStudent = async (req, res) => {
       });
     }
 
-    // Check password length
-    if (password.length < 6) {
+    if (typeof password !== "string" || password.length < 6) {
       return res.status(400).json({
         success: false,
         message: "Password must be at least 6 characters",
       });
     }
 
-    // Check duplicate SBU ID
-    const existingStudent = await Student.findOne({ sbuId });
+    if (
+      !mongoose.isValidObjectId(hostelId) ||
+      !mongoose.isValidObjectId(roomId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid hostel or room",
+      });
+    }
+
+    const formattedSbuId = String(sbuId).trim().toUpperCase();
+    const formattedEmail = String(email).trim().toLowerCase();
+
+    // Duplicate checks
+    const existingStudent = await Student.findOne({
+      sbuId: formattedSbuId,
+    });
 
     if (existingStudent) {
       return res.status(409).json({
@@ -67,9 +83,8 @@ export const createStudent = async (req, res) => {
       });
     }
 
-    // Check duplicate email
     const existingUser = await User.findOne({
-      email: email.toLowerCase(),
+      email: formattedEmail,
     });
 
     if (existingUser) {
@@ -79,7 +94,7 @@ export const createStudent = async (req, res) => {
       });
     }
 
-    // Check hostel
+    // Hostel and room checks
     const hostel = await Hostel.findById(hostelId);
 
     if (!hostel) {
@@ -89,7 +104,6 @@ export const createStudent = async (req, res) => {
       });
     }
 
-    // Check room
     const room = await Room.findById(roomId);
 
     if (!room) {
@@ -99,79 +113,110 @@ export const createStudent = async (req, res) => {
       });
     }
 
-    // Make sure room belongs to selected hostel
-    if (room.hostelId.toString() !== hostelId) {
+    if (room.hostelId.toString() !== hostelId.toString()) {
       return res.status(400).json({
         success: false,
         message: "Room does not belong to this hostel",
       });
     }
 
-    // Check room capacity
-    if (room.currentOccupancy >= room.capacity) {
+    // Take one bed in a single safe step.
+    // This fails if the room is full or under maintenance,
+    // even if two admins click at the same moment.
+    const seat = await Room.findOneAndUpdate(
+      {
+        _id: roomId,
+        hostelId,
+        status: "AVAILABLE",
+        $expr: { $lt: ["$currentOccupancy", "$capacity"] },
+      },
+      { $inc: { currentOccupancy: 1 } },
+      { new: true }
+    );
+
+    if (!seat) {
       return res.status(400).json({
         success: false,
-        message: "Room is already full",
+        message: "Room is full or not available",
       });
     }
 
-    // Hash password
+    reservedRoomId = seat._id;
+
+    if (seat.currentOccupancy >= seat.capacity) {
+      await Room.updateOne(
+        { _id: seat._id },
+        { $set: { status: "FULL" } }
+      );
+    }
+
+    // Create login account
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user account
     const user = await User.create({
-      name,
-      email: email.toLowerCase(),
-      phone,
+      name: String(name).trim(),
+      email: formattedEmail,
+      phone: String(phone).trim(),
       password: hashedPassword,
       role: "STUDENT",
     });
 
-    try {
-      // Create student
-      const student = await Student.create({
-        userId: user._id,
-        sbuId,
-        course,
-        year,
-        hostelId,
-        roomId,
-        fatherName,
-        fatherMobile,
-      });
+    createdUserId = user._id;
 
-      // Update room occupancy
-      room.currentOccupancy += 1;
+    // Create student profile
+    const student = await Student.create({
+      userId: user._id,
+      sbuId: formattedSbuId,
+      course,
+      year,
+      hostelId,
+      roomId,
+      fatherName,
+      fatherMobile,
+    });
 
-      if (room.currentOccupancy >= room.capacity) {
-        room.status = "FULL";
-      }
+    completed = true;
 
-      await room.save();
+    const createdStudent = await Student.findById(student._id)
+      .populate("userId", "name email phone role")
+      .populate("hostelId", "name code")
+      .populate("roomId", "roomNumber floor capacity");
 
-      // Populate student information
-      const createdStudent = await Student.findById(student._id)
-        .populate("userId", "name email phone role")
-        .populate("hostelId", "name code")
-        .populate("roomId", "roomNumber floor capacity");
-
-      return res.status(201).json({
-        success: true,
-        message: "Student account created successfully",
-        student: createdStudent,
-      });
-
-    } catch (studentError) {
-      // If student creation fails, remove the user
-      await User.findByIdAndDelete(user._id);
-
-      throw studentError;
-    }
-
+    return res.status(201).json({
+      success: true,
+      message: "Student account created successfully",
+      student: createdStudent,
+    });
   } catch (error) {
     console.error("Create student error:", error);
 
-    // Handle duplicate key errors
+    // Undo anything half-finished
+    if (!completed) {
+      try {
+        if (createdUserId) {
+          await User.findByIdAndDelete(createdUserId);
+        }
+
+        if (reservedRoomId) {
+          await Room.updateOne(
+            { _id: reservedRoomId, currentOccupancy: { $gt: 0 } },
+            { $inc: { currentOccupancy: -1 } }
+          );
+
+          await Room.updateOne(
+            {
+              _id: reservedRoomId,
+              status: "FULL",
+              $expr: { $lt: ["$currentOccupancy", "$capacity"] },
+            },
+            { $set: { status: "AVAILABLE" } }
+          );
+        }
+      } catch (rollbackError) {
+        console.error("Rollback error:", rollbackError);
+      }
+    }
+
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
@@ -185,7 +230,6 @@ export const createStudent = async (req, res) => {
     });
   }
 };
-
 
 // =================================================
 // GET LOGGED-IN STUDENT PROFILE
@@ -212,25 +256,36 @@ export const getMyProfile = async (req, res) => {
       success: true,
       student: {
         id: student._id,
+
         name: student.userId.name,
+
         sbuId: student.sbuId,
+
         email: student.userId.email,
+
         phone: student.userId.phone,
+
         course: student.course,
+
         year: student.year,
 
+        // FIX:
+        // Populated hostel is stored in hostelId
         hostel: student.hostelId,
 
+        // FIX:
+        // Populated room is stored in roomId
         room: student.roomId,
 
         fatherName: student.fatherName,
+
         fatherMobile: student.fatherMobile,
 
         role: student.userId.role,
+
         isActive: student.userId.isActive,
       },
     });
-
   } catch (error) {
     console.error("Get my profile error:", error);
 
@@ -241,14 +296,21 @@ export const getMyProfile = async (req, res) => {
   }
 };
 
-
 // =================================================
 // GET ALL STUDENTS
 // =================================================
+// By default students who LEFT are hidden.
+// Use /api/students?includeLeft=true to see them too.
 
 export const getStudents = async (req, res) => {
   try {
-    const students = await Student.find()
+    const filter = {};
+
+    if (req.query.includeLeft !== "true") {
+      filter.status = { $ne: "LEFT" };
+    }
+
+    const students = await Student.find(filter)
       .populate("userId", "name email phone role")
       .populate("hostelId", "name code")
       .populate("roomId", "roomNumber floor capacity");
@@ -258,7 +320,6 @@ export const getStudents = async (req, res) => {
       count: students.length,
       students,
     });
-
   } catch (error) {
     console.error("Get students error:", error);
 
@@ -268,7 +329,6 @@ export const getStudents = async (req, res) => {
     });
   }
 };
-
 
 // =================================================
 // GET STUDENT BY ID
@@ -292,7 +352,6 @@ export const getStudentById = async (req, res) => {
       success: true,
       student,
     });
-
   } catch (error) {
     console.error("Get student error:", error);
 
@@ -302,7 +361,6 @@ export const getStudentById = async (req, res) => {
     });
   }
 };
-
 
 // =================================================
 // UPDATE STUDENT
@@ -329,7 +387,18 @@ export const updateStudent = async (req, res) => {
       fatherMobile,
     } = req.body;
 
-    // If hostel or room is being changed
+    // =================================================
+    // FORMAT SBU ID IF PROVIDED
+    // =================================================
+
+    const formattedSbuId = sbuId
+      ? sbuId.trim().toUpperCase()
+      : null;
+
+    // =================================================
+    // IF HOSTEL OR ROOM IS BEING CHANGED
+    // =================================================
+
     if (hostelId || roomId) {
       const newHostelId =
         hostelId || student.hostelId.toString();
@@ -386,9 +455,8 @@ export const updateStudent = async (req, res) => {
         }
 
         // Decrease old room occupancy
-        const oldRoom = await Room.findById(
-          student.roomId
-        );
+        const oldRoom =
+          await Room.findById(student.roomId);
 
         if (
           oldRoom &&
@@ -420,14 +488,17 @@ export const updateStudent = async (req, res) => {
       }
     }
 
-    // Check duplicate SBU ID
+    // =================================================
+    // CHECK DUPLICATE SBU ID
+    // =================================================
+
     if (
-      sbuId &&
-      sbuId !== student.sbuId
+      formattedSbuId &&
+      formattedSbuId !== student.sbuId
     ) {
       const existingStudent =
         await Student.findOne({
-          sbuId,
+          sbuId: formattedSbuId,
           _id: { $ne: student._id },
         });
 
@@ -439,23 +510,35 @@ export const updateStudent = async (req, res) => {
         });
       }
 
-      student.sbuId = sbuId;
+      student.sbuId = formattedSbuId;
     }
 
-    // Update fields
-    if (course) student.course = course;
+    // =================================================
+    // UPDATE FIELDS
+    // =================================================
 
-    if (year) student.year = year;
+    if (course) {
+      student.course = course;
+    }
 
-    if (fatherName)
+    if (year) {
+      student.year = year;
+    }
+
+    if (fatherName) {
       student.fatherName = fatherName;
+    }
 
-    if (fatherMobile)
+    if (fatherMobile) {
       student.fatherMobile = fatherMobile;
+    }
 
     await student.save();
 
-    // Populate updated student
+    // =================================================
+    // POPULATE UPDATED STUDENT
+    // =================================================
+
     const updatedStudent =
       await Student.findById(student._id)
         .populate(
@@ -476,7 +559,6 @@ export const updateStudent = async (req, res) => {
       message: "Student updated successfully",
       student: updatedStudent,
     });
-
   } catch (error) {
     console.error(
       "Update student error:",
@@ -491,16 +573,23 @@ export const updateStudent = async (req, res) => {
   }
 };
 
-
 // =================================================
-// DELETE STUDENT
+// REMOVE STUDENT (soft delete)
 // =================================================
+// The student is marked LEFT. History is kept.
 
 export const deleteStudent = async (req, res) => {
   try {
-    const student = await Student.findById(
-      req.params.id
-    );
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid student ID",
+      });
+    }
+
+    const student = await Student.findById(id);
 
     if (!student) {
       return res.status(404).json({
@@ -509,50 +598,166 @@ export const deleteStudent = async (req, res) => {
       });
     }
 
-    // Decrease room occupancy
-    const room = await Room.findById(
-      student.roomId
+    if (student.status === "LEFT") {
+      return res.status(400).json({
+        success: false,
+        message: "This student has already been removed",
+      });
+    }
+
+    // Do not remove someone who is outside right now
+    const passOut = await GatePass.findOne({
+      studentId: student._id,
+      status: "OUT",
+    });
+
+    if (passOut) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Student is currently outside on a gate pass. Record the return first.",
+      });
+    }
+
+    // Mark as LEFT (only one request can win, so the room
+    // is never freed twice) and clear the QR token
+    const updated = await Student.findOneAndUpdate(
+      { _id: student._id, status: { $ne: "LEFT" } },
+      {
+        $set: { status: "LEFT", leftAt: new Date() },
+        $unset: { qrToken: "", qrDate: "" },
+      },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(400).json({
+        success: false,
+        message: "This student has already been removed",
+      });
+    }
+
+    // Switch off the login (blocked immediately by authMiddleware)
+    await User.findByIdAndUpdate(student.userId, {
+      isActive: false,
+    });
+
+    // Free the bed
+    const room = await Room.findOneAndUpdate(
+      { _id: student.roomId, currentOccupancy: { $gt: 0 } },
+      { $inc: { currentOccupancy: -1 } },
+      { new: true }
     );
 
     if (
       room &&
-      room.currentOccupancy > 0
+      room.status === "FULL" &&
+      room.currentOccupancy < room.capacity
     ) {
-      room.currentOccupancy -= 1;
-
-      if (room.status === "FULL") {
-        room.status = "AVAILABLE";
-      }
-
+      room.status = "AVAILABLE";
       await room.save();
     }
 
-    // Delete student
-    await Student.findByIdAndDelete(
-      req.params.id
+    // Cancel passes that were not used yet
+    await GatePass.updateMany(
+      {
+        studentId: student._id,
+        status: { $in: ["PENDING", "APPROVED"] },
+      },
+      { $set: { status: "CANCELLED" } }
     );
 
-    // Delete linked user account
-    await User.findByIdAndDelete(
-      student.userId
+    // Close an open college OUT record
+    await CollegeMovement.updateMany(
+      { studentId: student._id, status: "OUT" },
+      {
+        $set: {
+          status: "IN",
+          inTime: new Date(),
+          autoClosed: true,
+          remarks: "Closed: student was removed from hostel",
+        },
+      }
     );
 
     res.status(200).json({
       success: true,
       message:
-        "Student and login account deleted successfully",
+        "Student removed. Login disabled and room bed freed. Records are kept.",
     });
-
   } catch (error) {
-    console.error(
-      "Delete student error:",
-      error
-    );
+    console.error("Delete student error:", error);
 
     res.status(500).json({
       success: false,
-      message:
-        "Server error while deleting student",
+      message: "Server error while removing student",
+    });
+  }
+};
+
+
+// =================================================
+// RESET STUDENT PASSWORD
+// =================================================
+
+export const resetStudentPassword = async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    // Validate password
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "New password is required",
+      });
+    }
+
+    // Minimum password length
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
+    }
+
+    // Find student
+    const student = await Student.findById(req.params.id);
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+
+    // Find linked user account
+    const user = await User.findById(student.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Student login account not found",
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Save only hashed password
+    user.password = hashedPassword;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Student password reset successfully",
+    });
+  } catch (error) {
+    console.error("Reset student password error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error while resetting student password",
     });
   }
 };

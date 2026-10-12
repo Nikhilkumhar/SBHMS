@@ -7,7 +7,7 @@ function StudentDashboard() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = sessionStorage.getItem("user");
 
     if (!storedUser) {
       navigate("/");
@@ -25,15 +25,18 @@ function StudentDashboard() {
       setUser(parsedUser);
     } catch (error) {
       console.error("Invalid user data:", error);
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
+
+      sessionStorage.removeItem("user");
+      sessionStorage.removeItem("token");
+
       navigate("/");
     }
   }, [navigate]);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
+
     navigate("/");
   };
 
@@ -46,19 +49,14 @@ function StudentDashboard() {
       {/* ================= NAVBAR ================= */}
       <nav className="bg-white/95 backdrop-blur-md border-b border-blue-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 lg:px-10 h-20 flex items-center justify-between">
-
           {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-600/20">
-              <span className="text-white text-xl font-bold">
-                S
-              </span>
+              <span className="text-white text-xl font-bold">S</span>
             </div>
 
             <div>
-              <h1 className="text-lg font-bold text-slate-900">
-                SBHMS
-              </h1>
+              <h1 className="text-lg font-bold text-slate-900">SBHMS</h1>
 
               <p className="text-[10px] text-blue-600 font-semibold tracking-wide">
                 SARALA BIRLA HOSTEL
@@ -69,7 +67,6 @@ function StudentDashboard() {
           {/* User + Logout */}
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex items-center gap-3">
-
               {/* Avatar */}
               <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
                 <span className="text-sm font-semibold text-blue-700">
@@ -86,7 +83,6 @@ function StudentDashboard() {
                   Student
                 </p>
               </div>
-
             </div>
 
             <button
@@ -101,11 +97,9 @@ function StudentDashboard() {
 
       {/* ================= MAIN ================= */}
       <main className="max-w-7xl mx-auto px-6 lg:px-10 py-10">
-
         {/* ================= WELCOME ================= */}
         <section className="mb-10">
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
-
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold mb-4">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
@@ -129,24 +123,20 @@ function StudentDashboard() {
                 Account Active
               </span>
             </div>
-
           </div>
         </section>
 
         {/* ================= STUDENT INFORMATION ================= */}
         <section className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-2xl p-7 mb-10 shadow-xl shadow-blue-600/15">
-
           {/* Decorative shapes */}
           <div className="absolute -right-12 -top-16 w-48 h-48 rounded-full bg-white/10" />
+
           <div className="absolute right-24 -bottom-20 w-40 h-40 rounded-full bg-white/5" />
 
           <div className="relative">
-
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-7">
-
               {/* Student */}
               <div className="flex items-center gap-4">
-
                 <div className="w-14 h-14 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center">
                   <span className="text-2xl font-bold text-white">
                     {user.name?.charAt(0)?.toUpperCase()}
@@ -162,16 +152,12 @@ function StudentDashboard() {
                     {user.name}
                   </h3>
                 </div>
-
               </div>
 
               {/* Information */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-10 gap-y-5">
-
                 <div>
-                  <p className="text-xs text-blue-100">
-                    SBU ID
-                  </p>
+                  <p className="text-xs text-blue-100">SBU ID</p>
 
                   <p className="mt-1 text-sm font-semibold text-white">
                     {user.sbuId || "—"}
@@ -179,9 +165,7 @@ function StudentDashboard() {
                 </div>
 
                 <div>
-                  <p className="text-xs text-blue-100">
-                    Role
-                  </p>
+                  <p className="text-xs text-blue-100">Role</p>
 
                   <p className="mt-1 text-sm font-semibold text-white">
                     Student
@@ -189,27 +173,20 @@ function StudentDashboard() {
                 </div>
 
                 <div>
-                  <p className="text-xs text-blue-100">
-                    Account
-                  </p>
+                  <p className="text-xs text-blue-100">Account</p>
 
                   <p className="mt-1 text-sm font-semibold text-green-200">
                     Active
                   </p>
                 </div>
-
               </div>
-
             </div>
-
           </div>
         </section>
 
         {/* ================= QUICK ACCESS ================= */}
         <section className="mb-10">
-
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
-
             <div>
               <p className="text-sm font-semibold text-blue-600">
                 Quick Access
@@ -223,12 +200,10 @@ function StudentDashboard() {
             <p className="text-sm text-slate-500">
               Access your daily hostel services
             </p>
-
           </div>
 
           {/* Cards */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-
             {/* My Profile */}
             <DashboardCard
               icon="P"
@@ -282,18 +257,13 @@ function StudentDashboard() {
               description="View important hostel announcements."
               onClick={() => navigate("/student/notifications")}
             />
-
           </div>
-
         </section>
 
         {/* ================= TODAY'S STATUS ================= */}
         <section className="mb-10">
-
           <div className="mb-6">
-            <p className="text-sm font-semibold text-blue-600">
-              Today
-            </p>
+            <p className="text-sm font-semibold text-blue-600">Today</p>
 
             <h3 className="mt-1 text-2xl font-bold text-slate-900">
               Your Status
@@ -301,7 +271,6 @@ function StudentDashboard() {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-
             <StatusCard
               title="Hostel Attendance"
               value="Not Marked"
@@ -325,22 +294,15 @@ function StudentDashboard() {
               icon="G"
               iconStyle="bg-blue-100 text-blue-700"
             />
-
           </div>
-
         </section>
 
         {/* ================= SECURITY ================= */}
         <section className="bg-white border border-blue-100 rounded-2xl p-6 shadow-sm">
-
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
-
             <div className="flex items-center gap-4">
-
               <div className="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center">
-                <span className="text-green-600 font-bold text-lg">
-                  ✓
-                </span>
+                <span className="text-green-600 font-bold text-lg">✓</span>
               </div>
 
               <div>
@@ -352,18 +314,14 @@ function StudentDashboard() {
                   Your SBHMS account is protected by secure authentication.
                 </p>
               </div>
-
             </div>
 
             <span className="inline-flex items-center gap-2 text-sm font-semibold text-green-600">
               <span className="w-2 h-2 rounded-full bg-green-500" />
               Active
             </span>
-
           </div>
-
         </section>
-
       </main>
     </div>
   );
@@ -380,7 +338,6 @@ function DashboardCard({
 }) {
   return (
     <div className="group bg-white border border-slate-200 rounded-2xl p-6 hover:border-blue-200 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
-
       <div
         className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold ${iconStyle}`}
       >
@@ -406,7 +363,6 @@ function DashboardCard({
           →
         </span>
       </button>
-
     </div>
   );
 }
@@ -422,9 +378,7 @@ function StatusCard({
 }) {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition">
-
       <div className="flex items-start justify-between gap-4">
-
         <div>
           <p className="text-sm font-medium text-slate-500">
             {title}
@@ -444,9 +398,7 @@ function StatusCard({
         >
           {icon}
         </div>
-
       </div>
-
     </div>
   );
 }

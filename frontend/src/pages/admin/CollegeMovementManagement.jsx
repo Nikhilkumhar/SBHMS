@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { portalBase } from "../../utils/roleHome";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 
@@ -32,7 +33,7 @@ function CollegeMovementManagement() {
 
   const [correcting, setCorrecting] = useState(false);
 
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
 
   // ======================================================
   // FETCH ALL MOVEMENTS
@@ -354,7 +355,7 @@ function CollegeMovementManagement() {
               <button
                 type="button"
                 onClick={() =>
-                  navigate("/admin")
+                  navigate(portalBase())
                 }
                 className="mb-3 text-sm font-medium text-blue-600 hover:text-blue-700"
               >

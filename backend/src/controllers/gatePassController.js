@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { getISTDateString, istDateTime } from "../utils/time.js";
 import GatePass from "../models/gatePassModel.js";
 import Student from "../models/studentModel.js";
 
@@ -54,10 +55,11 @@ export const createGatePass = async (req, res) => {
     }
 
     // Validate dates
-    const outDateTime = new Date(`${outDate}T${outTime}`);
+    const outDateTime = istDateTime(outDate, outTime);
 
-    const expectedInDateTime = new Date(
-      `${expectedInDate}T${expectedInTime}`
+    const expectedInDateTime = istDateTime(
+      expectedInDate,
+      expectedInTime
     );
 
     if (
@@ -380,23 +382,38 @@ export const rejectGatePass = async (req, res) => {
   }
 };
 
-
 // ======================================================
 // GUARD RECORDS STUDENT OUT
 // ======================================================
+
+// Loads the student's name and SBU ID so the guard can verify the person
+const STUDENT_POPULATE = {
+  path: "studentId",
+  select: "sbuId course userId",
+  populate: { path: "userId", select: "name" },
+};
+
+const getStudentInfo = (student) => ({
+  id: student?._id,
+  name: student?.userId?.name || "Student",
+  sbuId: student?.sbuId,
+  course: student?.course,
+});
 
 export const markGatePassOut = async (req, res) => {
   try {
     const { qrToken } = req.body;
 
-    if (!qrToken) {
+    if (!qrToken || typeof qrToken !== "string") {
       return res.status(400).json({
         success: false,
         message: "QR token is required",
       });
     }
 
-    const gatePass = await GatePass.findOne({ qrToken });
+    const gatePass = await GatePass.findOne({
+      qrToken: qrToken.trim(),
+    });
 
     if (!gatePass) {
       return res.status(404).json({
@@ -414,34 +431,59 @@ export const markGatePassOut = async (req, res) => {
 
     const now = new Date();
 
-    const outDate = new Date(gatePass.outDate);
+    const today = getISTDateString(now);
 
-    const outDateString = outDate.toISOString().split("T")[0];
+    const passDay = new Date(gatePass.outDate)
+      .toISOString()
+      .split("T")[0];
 
-    const currentDateString = now.toISOString().split("T")[0];
+    // Pass day already finished -> expire it
+    if (passDay < today) {
+      gatePass.status = "EXPIRED";
+      await gatePass.save();
 
-    if (currentDateString !== outDateString) {
       return res.status(400).json({
         success: false,
-        message: "Gate pass is not valid for today",
+        message: "This gate pass has expired",
       });
     }
 
-    gatePass.status = "OUT";
-    gatePass.actualOutTime = now;
+    // Pass day not started yet
+    if (passDay > today) {
+      return res.status(400).json({
+        success: false,
+        message: `This gate pass is valid only on ${passDay}`,
+      });
+    }
 
-    await gatePass.save();
+    // Atomic update: only one scan can win
+    const updated = await GatePass.findOneAndUpdate(
+      { _id: gatePass._id, status: "APPROVED" },
+      { $set: { status: "OUT", actualOutTime: now } },
+      { new: true }
+    ).populate(STUDENT_POPULATE);
+
+    if (!updated) {
+      return res.status(409).json({
+        success: false,
+        message: "This gate pass was just used. Please refresh.",
+      });
+    }
+
+    const student = getStudentInfo(updated.studentId);
 
     res.status(200).json({
       success: true,
       message: "Student OUT recorded successfully",
+      student,
       gatePass: {
-        id: gatePass._id,
-        studentId: gatePass.studentId,
-        purpose: gatePass.purpose,
-        passType: gatePass.passType,
-        status: gatePass.status,
-        actualOutTime: gatePass.actualOutTime,
+        id: updated._id,
+        studentId: student.id,
+        student,
+        purpose: updated.purpose,
+        passType: updated.passType,
+        status: updated.status,
+        actualOutTime: updated.actualOutTime,
       },
     });
   } catch (error) {
@@ -463,14 +505,16 @@ export const markGatePassIn = async (req, res) => {
   try {
     const { qrToken } = req.body;
 
-    if (!qrToken) {
+    if (!qrToken || typeof qrToken !== "string") {
       return res.status(400).json({
         success: false,
         message: "QR token is required",
       });
     }
 
-    const gatePass = await GatePass.findOne({ qrToken });
+    const gatePass = await GatePass.findOne({
+      qrToken: qrToken.trim(),
+    });
 
     if (!gatePass) {
       return res.status(404).json({
@@ -487,22 +531,52 @@ export const markGatePassIn = async (req, res) => {
       });
     }
 
-    gatePass.status = "RETURNED";
-    gatePass.actualInTime = new Date();
+    const now = new Date();
 
-    await gatePass.save();
+    // Was the student late? (India time)
+    const expectedInDay = new Date(gatePass.expectedInDate)
+      .toISOString()
+      .split("T")[0];
+
+    const expectedIn = istDateTime(
+      expectedInDay,
+      gatePass.expectedInTime
+    );
+
+    const isLate = now > expectedIn;
+
+    // Atomic update: only one scan can win
+    const updated = await GatePass.findOneAndUpdate(
+      { _id: gatePass._id, status: "OUT" },
+      { $set: { status: "RETURNED", actualInTime: now } },
+      { new: true }
+    ).populate(STUDENT_POPULATE);
+
+    if (!updated) {
+      return res.status(409).json({
+        success: false,
+        message: "This gate pass was just used. Please refresh.",
+      });
+    }
+
+    const student = getStudentInfo(updated.studentId);
 
     res.status(200).json({
       success: true,
-      message: "Student IN recorded successfully",
+      message: isLate
+        ? "Student IN recorded (returned LATE)"
+        : "Student IN recorded successfully",
+      isLate,
+      student,
       gatePass: {
-        id: gatePass._id,
-        studentId: gatePass.studentId,
-        purpose: gatePass.purpose,
-        passType: gatePass.passType,
-        status: gatePass.status,
-        actualOutTime: gatePass.actualOutTime,
-        actualInTime: gatePass.actualInTime,
+        id: updated._id,
+        studentId: student.id,
+        student,
+        purpose: updated.purpose,
+        passType: updated.passType,
+        status: updated.status,
+        actualOutTime: updated.actualOutTime,
+        actualInTime: updated.actualInTime,
       },
     });
   } catch (error) {

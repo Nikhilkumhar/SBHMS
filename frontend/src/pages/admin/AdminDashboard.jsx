@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
 import api from "../../services/api";
 
 function AdminDashboard() {
@@ -12,12 +11,15 @@ function AdminDashboard() {
     students: 0,
     hostels: 0,
     rooms: 0,
-    staff: null,
+    staff: 0,
   });
 
   const [loadingStats, setLoadingStats] = useState(true);
 
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  // Get current tab's logged-in user
+  const user = JSON.parse(
+    sessionStorage.getItem("user") || "{}"
+  );
 
   const sidebarWidth = sidebarExpanded ? "240px" : "72px";
 
@@ -28,7 +30,8 @@ function AdminDashboard() {
       try {
         setLoadingStats(true);
 
-        const token = localStorage.getItem("token");
+        // Get token from current browser tab
+        const token = sessionStorage.getItem("token");
 
         const config = {
           headers: {
@@ -36,12 +39,17 @@ function AdminDashboard() {
           },
         };
 
-        const [studentsResponse, hostelsResponse, roomsResponse] =
-          await Promise.all([
-            api.get("/api/students", config),
-            api.get("/api/hostels", config),
-            api.get("/api/rooms", config),
-          ]);
+        const [
+          studentsResponse,
+          hostelsResponse,
+          roomsResponse,
+          staffResponse,
+        ] = await Promise.all([
+          api.get("/api/students", config),
+          api.get("/api/hostels", config),
+          api.get("/api/rooms", config),
+          api.get("/api/staff", config),
+        ]);
 
         const students =
           studentsResponse.data?.students ||
@@ -58,6 +66,11 @@ function AdminDashboard() {
           roomsResponse.data?.data ||
           [];
 
+        const staff =
+          staffResponse.data?.staff ||
+          staffResponse.data?.data ||
+          [];
+
         setStats({
           students: Array.isArray(students)
             ? students.length
@@ -71,7 +84,9 @@ function AdminDashboard() {
             ? rooms.length
             : 0,
 
-          staff: null,
+          staff: Array.isArray(staff)
+            ? staff.length
+            : 0,
         });
       } catch (error) {
         console.error(
@@ -89,8 +104,8 @@ function AdminDashboard() {
   /* ================= LOGOUT ================= */
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
 
     navigate("/login");
   };
@@ -166,7 +181,7 @@ function AdminDashboard() {
     },
     {
       title: "Staff Members",
-      value: stats.staff ?? "—",
+      value: stats.staff,
       description: "Staff management",
       icon: "👥",
       path: "/admin/staff",
@@ -273,7 +288,6 @@ function AdminDashboard() {
                 </p>
               </div>
             )}
-
           </div>
 
           <button
@@ -320,20 +334,14 @@ function AdminDashboard() {
 
         <nav className="px-2 space-y-1">
           {menuItems.map((item) => {
-
-            const active =
-              item.path === "/admin";
+            const active = item.path === "/admin";
 
             return (
               <button
                 key={item.name}
                 type="button"
                 onClick={() => navigate(item.path)}
-                title={
-                  !sidebarExpanded
-                    ? item.name
-                    : ""
-                }
+                title={!sidebarExpanded ? item.name : ""}
                 className={`
                   w-full
                   h-11
@@ -353,7 +361,6 @@ function AdminDashboard() {
                   }
                 `}
               >
-
                 <span className="w-6 shrink-0 text-center">
                   {item.icon}
                 </span>
@@ -363,7 +370,6 @@ function AdminDashboard() {
                     {item.name}
                   </span>
                 )}
-
               </button>
             );
           })}
@@ -372,15 +378,10 @@ function AdminDashboard() {
         {/* Logout */}
 
         <div className="absolute bottom-0 left-0 right-0 border-t border-slate-800 p-2">
-
           <button
             type="button"
             onClick={handleLogout}
-            title={
-              !sidebarExpanded
-                ? "Logout"
-                : ""
-            }
+            title={!sidebarExpanded ? "Logout" : ""}
             className={`
               w-full
               h-11
@@ -397,7 +398,6 @@ function AdminDashboard() {
               }
             `}
           >
-
             <span className="w-6 text-center shrink-0">
               ↪
             </span>
@@ -407,11 +407,8 @@ function AdminDashboard() {
                 Logout
               </span>
             )}
-
           </button>
-
         </div>
-
       </aside>
 
       {/* ================= MAIN AREA ================= */}
@@ -441,9 +438,7 @@ function AdminDashboard() {
             sm:px-7
           "
         >
-
           <div className="min-w-0">
-
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
               Dashboard
             </h2>
@@ -451,13 +446,11 @@ function AdminDashboard() {
             <p className="text-xs sm:text-sm text-slate-500">
               Monitor SBHMS
             </p>
-
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
 
             <div className="hidden sm:block text-right">
-
               <p className="text-sm font-semibold text-slate-800">
                 {user.name || "SBHMS Administrator"}
               </p>
@@ -465,7 +458,6 @@ function AdminDashboard() {
               <p className="text-xs text-slate-500">
                 {user.role || "ADMIN"}
               </p>
-
             </div>
 
             <div
@@ -485,9 +477,7 @@ function AdminDashboard() {
                 .charAt(0)
                 .toUpperCase()}
             </div>
-
           </div>
-
         </header>
 
         {/* ================= CONTENT ================= */}
@@ -497,7 +487,6 @@ function AdminDashboard() {
           {/* Welcome */}
 
           <section className="mb-7">
-
             <div
               className="
                 rounded-2xl
@@ -509,7 +498,6 @@ function AdminDashboard() {
                 py-7
               "
             >
-
               <p className="text-sm font-medium text-blue-100 mb-2">
                 Administrator Portal
               </p>
@@ -525,17 +513,13 @@ function AdminDashboard() {
                 movements and system reports from
                 one place.
               </p>
-
             </div>
-
           </section>
 
           {/* Overview */}
 
           <section className="mb-7">
-
             <div className="mb-4">
-
               <h2 className="text-lg font-bold text-slate-900">
                 Overview
               </h2>
@@ -543,7 +527,6 @@ function AdminDashboard() {
               <p className="text-sm text-slate-500">
                 Current hostel management summary
               </p>
-
             </div>
 
             <div
@@ -555,9 +538,7 @@ function AdminDashboard() {
                 gap-4
               "
             >
-
               {overviewCards.map((card) => (
-
                 <button
                   key={card.title}
                   type="button"
@@ -575,11 +556,9 @@ function AdminDashboard() {
                     transition
                   "
                 >
-
                   <div className="flex items-start justify-between gap-3">
 
                     <div className="min-w-0">
-
                       <p className="text-sm text-slate-500">
                         {card.title}
                       </p>
@@ -591,7 +570,6 @@ function AdminDashboard() {
                       <p className="text-xs text-slate-400 mt-2">
                         {card.description}
                       </p>
-
                     </div>
 
                     <div
@@ -611,21 +589,15 @@ function AdminDashboard() {
                     </div>
 
                   </div>
-
                 </button>
-
               ))}
-
             </div>
-
           </section>
 
           {/* Quick Actions */}
 
           <section className="mb-7">
-
             <div className="mb-4">
-
               <h2 className="text-lg font-bold text-slate-900">
                 Quick Actions
               </h2>
@@ -633,7 +605,6 @@ function AdminDashboard() {
               <p className="text-sm text-slate-500">
                 Frequently used management sections
               </p>
-
             </div>
 
             <div
@@ -644,9 +615,7 @@ function AdminDashboard() {
                 gap-4
               "
             >
-
               {quickActions.map((item) => (
-
                 <button
                   key={item.title}
                   type="button"
@@ -663,7 +632,6 @@ function AdminDashboard() {
                     transition
                   "
                 >
-
                   <div className="flex items-start gap-4">
 
                     <div
@@ -683,7 +651,6 @@ function AdminDashboard() {
                     </div>
 
                     <div className="min-w-0">
-
                       <h3 className="font-semibold text-slate-900">
                         {item.title}
                       </h3>
@@ -695,23 +662,17 @@ function AdminDashboard() {
                       <p className="text-sm font-medium text-blue-600 mt-3">
                         Open section →
                       </p>
-
                     </div>
 
                   </div>
-
                 </button>
-
               ))}
-
             </div>
-
           </section>
 
           {/* System Status */}
 
           <section>
-
             <div
               className="
                 bg-white
@@ -722,7 +683,6 @@ function AdminDashboard() {
                 sm:p-6
               "
             >
-
               <div
                 className="
                   flex
@@ -733,9 +693,7 @@ function AdminDashboard() {
                   gap-4
                 "
               >
-
                 <div>
-
                   <h2 className="font-bold text-slate-900">
                     System Status
                   </h2>
@@ -743,7 +701,6 @@ function AdminDashboard() {
                   <p className="text-sm text-slate-500 mt-1">
                     SBHMS services and authentication status
                   </p>
-
                 </div>
 
                 <div
@@ -761,13 +718,9 @@ function AdminDashboard() {
                     text-green-700
                   "
                 >
-
                   <span className="w-2 h-2 rounded-full bg-green-500" />
-
                   System Online
-
                 </div>
-
               </div>
 
               <div
@@ -779,9 +732,7 @@ function AdminDashboard() {
                   mt-6
                 "
               >
-
                 <div className="border border-slate-200 rounded-xl p-4">
-
                   <p className="text-xs text-slate-500">
                     Authentication
                   </p>
@@ -789,11 +740,9 @@ function AdminDashboard() {
                   <p className="text-sm font-semibold text-green-600 mt-1">
                     Operational
                   </p>
-
                 </div>
 
                 <div className="border border-slate-200 rounded-xl p-4">
-
                   <p className="text-xs text-slate-500">
                     Database
                   </p>
@@ -801,11 +750,9 @@ function AdminDashboard() {
                   <p className="text-sm font-semibold text-green-600 mt-1">
                     Connected
                   </p>
-
                 </div>
 
                 <div className="border border-slate-200 rounded-xl p-4">
-
                   <p className="text-xs text-slate-500">
                     API Server
                   </p>
@@ -813,19 +760,13 @@ function AdminDashboard() {
                   <p className="text-sm font-semibold text-green-600 mt-1">
                     Running
                   </p>
-
                 </div>
-
               </div>
-
             </div>
-
           </section>
 
         </main>
-
       </div>
-
     </div>
   );
 }

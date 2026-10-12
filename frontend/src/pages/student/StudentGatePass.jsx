@@ -23,7 +23,7 @@ function StudentGatePass() {
   });
 
   const fetchGatePasses = async () => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
 
     if (!token) {
       navigate("/login");
@@ -45,8 +45,8 @@ function StudentGatePass() {
       console.error("Gate pass error:", error);
 
       if (error.response?.status === 401) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("user");
         navigate("/login");
         return;
       }
@@ -112,7 +112,12 @@ function StudentGatePass() {
     try {
       setSubmitting(true);
 
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
+
+      if (!token) {
+        navigate("/login");
+        return;
+      }
 
       const response = await api.post(
         "/api/gate-passes",
@@ -144,6 +149,13 @@ function StudentGatePass() {
       await fetchGatePasses();
     } catch (error) {
       console.error("Create gate pass error:", error);
+
+      if (error.response?.status === 401) {
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("user");
+        navigate("/login");
+        return;
+      }
 
       setError(
         error.response?.data?.message ||
@@ -191,8 +203,9 @@ function StudentGatePass() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
+
     navigate("/");
   };
 
@@ -212,12 +225,10 @@ function StudentGatePass() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-slate-50 to-indigo-50">
-
       {/* ================= NAVBAR ================= */}
 
       <nav className="bg-white/95 backdrop-blur-md border-b border-blue-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 lg:px-10 h-20 flex items-center justify-between">
-
           <button
             type="button"
             onClick={() => navigate("/student")}
@@ -241,7 +252,6 @@ function StudentGatePass() {
           </button>
 
           <div className="flex items-center gap-3">
-
             <button
               type="button"
               onClick={() => navigate("/student")}
@@ -257,7 +267,6 @@ function StudentGatePass() {
             >
               Logout
             </button>
-
           </div>
         </div>
       </nav>
@@ -265,13 +274,10 @@ function StudentGatePass() {
       {/* ================= MAIN ================= */}
 
       <main className="max-w-7xl mx-auto px-6 lg:px-10 py-10">
-
         {/* ================= HEADER ================= */}
 
         <section className="mb-8">
-
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
-
             <div>
               <p className="text-sm font-semibold text-blue-600">
                 Student Portal
@@ -295,13 +301,9 @@ function StudentGatePass() {
               }}
               className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 shadow-md shadow-blue-600/20 transition"
             >
-              <span className="text-lg leading-none">
-                +
-              </span>
-
+              <span className="text-lg leading-none">+</span>
               Apply for Gate Pass
             </button>
-
           </div>
         </section>
 
@@ -327,9 +329,7 @@ function StudentGatePass() {
 
         {showForm && (
           <section className="bg-white border border-blue-100 rounded-2xl shadow-sm mb-8 overflow-hidden">
-
             <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
-
               <div>
                 <h3 className="text-xl font-bold text-slate-900">
                   Apply for Gate Pass
@@ -347,24 +347,17 @@ function StudentGatePass() {
               >
                 ✕
               </button>
-
             </div>
 
-            <form
-              onSubmit={handleSubmit}
-              className="p-6"
-            >
-
+            <form onSubmit={handleSubmit} className="p-6">
               {/* Pass Type */}
 
               <div className="mb-7">
-
                 <label className="block text-sm font-semibold text-slate-700 mb-3">
                   Pass Type
                 </label>
 
                 <div className="grid sm:grid-cols-2 gap-4">
-
                   {/* Market */}
 
                   <label
@@ -374,7 +367,6 @@ function StudentGatePass() {
                         : "border-slate-200 bg-white hover:border-orange-200"
                     }`}
                   >
-
                     <input
                       type="radio"
                       name="passType"
@@ -385,7 +377,6 @@ function StudentGatePass() {
                     />
 
                     <div className="flex items-center gap-3">
-
                       <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
                         <span className="font-bold text-orange-600">
                           M
@@ -401,7 +392,6 @@ function StudentGatePass() {
                           Short outside visit
                         </p>
                       </div>
-
                     </div>
                   </label>
 
@@ -414,7 +404,6 @@ function StudentGatePass() {
                         : "border-slate-200 bg-white hover:border-indigo-200"
                     }`}
                   >
-
                     <input
                       type="radio"
                       name="passType"
@@ -425,7 +414,6 @@ function StudentGatePass() {
                     />
 
                     <div className="flex items-center gap-3">
-
                       <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
                         <span className="font-bold text-indigo-600">
                           H
@@ -441,17 +429,14 @@ function StudentGatePass() {
                           Going home
                         </p>
                       </div>
-
                     </div>
                   </label>
-
                 </div>
               </div>
 
               {/* Purpose */}
 
               <div className="mb-6">
-
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   Purpose
                 </label>
@@ -464,13 +449,11 @@ function StudentGatePass() {
                   placeholder="Enter the reason for going outside..."
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none"
                 />
-
               </div>
 
               {/* Dates and Times */}
 
               <div className="grid md:grid-cols-2 gap-6 mb-7">
-
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Out Date
@@ -526,26 +509,22 @@ function StudentGatePass() {
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   />
                 </div>
-
               </div>
 
               {/* Notice */}
 
               <div className="mb-6 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
-
                 <p className="text-xs leading-5 text-blue-700">
                   Your application will remain{" "}
                   <strong>PENDING</strong> until the warden
                   verifies parent permission and approves the
                   gate pass.
                 </p>
-
               </div>
 
               {/* Buttons */}
 
               <div className="flex flex-col sm:flex-row justify-end gap-3">
-
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
@@ -563,9 +542,7 @@ function StudentGatePass() {
                     ? "Submitting..."
                     : "Submit Application"}
                 </button>
-
               </div>
-
             </form>
           </section>
         )}
@@ -573,7 +550,6 @@ function StudentGatePass() {
         {/* ================= SUMMARY ================= */}
 
         <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-
           <SummaryCard
             title="Total Passes"
             value={gatePasses.length}
@@ -613,15 +589,12 @@ function StudentGatePass() {
             icon="→"
             iconStyle="bg-orange-100 text-orange-700"
           />
-
         </section>
 
         {/* ================= GATE PASS LIST ================= */}
 
         <section>
-
           <div className="mb-5">
-
             <h3 className="text-xl font-bold text-slate-900">
               My Gate Passes
             </h3>
@@ -629,13 +602,10 @@ function StudentGatePass() {
             <p className="mt-1 text-sm text-slate-500">
               Your recent gate pass applications.
             </p>
-
           </div>
 
           {gatePasses.length === 0 ? (
-
             <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
-
               <div className="w-14 h-14 mx-auto rounded-2xl bg-blue-100 flex items-center justify-center">
                 <span className="text-xl font-bold text-blue-600">
                   G
@@ -657,13 +627,9 @@ function StudentGatePass() {
               >
                 Apply for Gate Pass
               </button>
-
             </div>
-
           ) : (
-
             <div className="space-y-4">
-
               {gatePasses.map((pass) => (
                 <GatePassCard
                   key={pass._id || pass.id}
@@ -672,11 +638,8 @@ function StudentGatePass() {
                   formatDate={formatDate}
                 />
               ))}
-
             </div>
-
           )}
-
         </section>
       </main>
     </div>
@@ -695,11 +658,8 @@ function SummaryCard({
 }) {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-
       <div className="flex items-center justify-between">
-
         <div>
-
           <p className="text-sm text-slate-500">
             {title}
           </p>
@@ -707,7 +667,6 @@ function SummaryCard({
           <p className="mt-2 text-2xl font-bold text-slate-900">
             {value}
           </p>
-
         </div>
 
         <div
@@ -715,9 +674,7 @@ function SummaryCard({
         >
           {icon}
         </div>
-
       </div>
-
     </div>
   );
 }
@@ -737,15 +694,11 @@ function GatePassCard({
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition">
-
       <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-8">
-
         {/* ================= PASS INFORMATION ================= */}
 
         <div className="flex-1">
-
           <div className="flex items-start gap-4">
-
             <div
               className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold ${
                 pass.passType === "HOME"
@@ -757,9 +710,7 @@ function GatePassCard({
             </div>
 
             <div>
-
               <div className="flex flex-wrap items-center gap-2">
-
                 <h4 className="text-lg font-bold text-slate-900">
                   {pass.passType === "HOME"
                     ? "Home Pass"
@@ -773,21 +724,17 @@ function GatePassCard({
                 >
                   {pass.status}
                 </span>
-
               </div>
 
               <p className="mt-2 text-sm text-slate-600">
                 {pass.purpose || "No purpose provided"}
               </p>
-
             </div>
-
           </div>
 
           {/* Details */}
 
           <div className="grid sm:grid-cols-2 gap-x-10 gap-y-4 mt-6">
-
             <Detail
               label="Out Date"
               value={formatDate(pass.outDate)}
@@ -826,20 +773,15 @@ function GatePassCard({
               label="Actual Status"
               value={pass.status}
             />
-
           </div>
-
         </div>
 
         {/* ================= QR SECTION ================= */}
 
         {showQRCode && (
           <div className="w-full xl:w-[300px] shrink-0">
-
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-
               <div className="text-center">
-
                 <p className="text-sm font-bold text-blue-900">
                   Gate Pass QR
                 </p>
@@ -847,28 +789,22 @@ function GatePassCard({
                 <p className="mt-1 text-xs text-blue-700">
                   Show this QR code to the hostel guard.
                 </p>
-
               </div>
 
               <div className="mt-5 flex justify-center">
-
                 <div className="rounded-2xl bg-white p-4 shadow-sm border border-blue-100">
-
                   <QRCodeCanvas
                     value={pass.qrToken}
                     size={200}
                     level="M"
                     includeMargin={true}
                   />
-
                 </div>
-
               </div>
 
               {/* Status */}
 
               <div className="mt-4 text-center">
-
                 <span
                   className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getStatusStyle(
                     pass.status
@@ -878,43 +814,34 @@ function GatePassCard({
                     ? "Ready for OUT scan"
                     : "Currently Outside"}
                 </span>
-
               </div>
 
               {/* QR Token */}
 
               <div className="mt-5">
-
                 <p className="text-[11px] uppercase tracking-wide font-semibold text-blue-700">
                   QR Token
                 </p>
 
                 <div className="mt-2 rounded-xl border border-blue-200 bg-white p-3">
-
                   <p className="break-all text-[10px] leading-4 font-mono text-slate-500">
                     {pass.qrToken}
                   </p>
-
                 </div>
 
                 <p className="mt-2 text-[11px] leading-4 text-blue-700">
                   This token is used by the guard scanner
                   to verify this gate pass.
                 </p>
-
               </div>
-
             </div>
-
           </div>
         )}
-
       </div>
 
       {/* ================= FOOTER ================= */}
 
       <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-
         <p className="text-xs text-slate-400">
           Applied{" "}
           {pass.createdAt
@@ -939,9 +866,7 @@ function GatePassCard({
             Gate pass completed
           </span>
         )}
-
       </div>
-
     </div>
   );
 }
@@ -957,7 +882,6 @@ function Detail({
 }) {
   return (
     <div>
-
       <p className="text-[11px] uppercase tracking-wide font-semibold text-slate-400">
         {label}
       </p>
@@ -967,7 +891,6 @@ function Detail({
       >
         {value || "—"}
       </p>
-
     </div>
   );
 }

@@ -17,7 +17,7 @@ function StudentQR() {
       setLoading(true);
       setError("");
 
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
 
       const response = await api.get("/api/student-qr/daily", {
         headers: {

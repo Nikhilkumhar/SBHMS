@@ -4,78 +4,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
 import Student from "../models/studentModel.js";
 
-// ==========================================
-// REGISTER USER
-// ==========================================
-// Kept temporarily for backend testing.
-// Public registration should not be used in the
-// final SBHMS application.
-export const registerUser = async (req, res) => {
-  try {
-    const { name, email, phone, password } = req.body;
 
-    // Check required fields
-    if (!name || !email || !phone || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "All fields are required",
-      });
-    }
-
-    // Check password length
-    if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: "Password must be at least 6 characters",
-      });
-    }
-
-    // Check existing email
-    const existingUser = await User.findOne({
-      email: email.toLowerCase(),
-    });
-
-    if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        message: "User with this email already exists",
-      });
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
-    const user = await User.create({
-      name,
-      email: email.toLowerCase(),
-      phone,
-      password: hashedPassword,
-      role: "STUDENT",
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "User registered successfully",
-
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        isActive: user.isActive,
-      },
-    });
-  } catch (error) {
-    console.error("Registration error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Server error during registration",
-    });
-  }
-};
 
 // ==========================================
 // STUDENT LOGIN

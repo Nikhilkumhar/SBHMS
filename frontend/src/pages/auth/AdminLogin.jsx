@@ -18,23 +18,39 @@ function AdminLogin() {
       ...formData,
       [e.target.name]: e.target.value,
     });
+
+    setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    setError("");
-    setLoading(true);
+    if (!formData.staffId || !formData.password) {
+      setError("Please enter your Admin ID and password.");
+      return;
+    }
 
     try {
-      const response = await api.post("/api/auth/admin-login", {
-        staffId: formData.staffId,
-        password: formData.password,
-      });
+      setLoading(true);
+      setError("");
+
+      const response = await api.post(
+        "/api/auth/admin-login",
+        {
+          staffId: formData.staffId,
+          password: formData.password,
+        }
+      );
 
       if (response.data.success) {
-        localStorage.setItem("token", response.data.token);
-        localStorage.setItem(
+        // IMPORTANT:
+        // sessionStorage keeps this login separate for each browser tab.
+        sessionStorage.setItem(
+          "token",
+          response.data.token
+        );
+
+        sessionStorage.setItem(
           "user",
           JSON.stringify(response.data.user)
         );
@@ -42,6 +58,8 @@ function AdminLogin() {
         navigate("/admin");
       }
     } catch (error) {
+      console.error("Admin login error:", error);
+
       setError(
         error.response?.data?.message ||
           "Admin login failed. Please try again."
@@ -52,90 +70,93 @@ function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 text-white text-2xl font-bold shadow-lg">
-            A
+    <div className="min-h-screen bg-gray-100">
+      <div className="flex min-h-screen items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl sm:p-10">
+
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">
+              Admin Login
+            </h1>
+
+            <p className="mt-2 text-gray-600">
+              Login to manage the Smart Birla Hostel Management System.
+            </p>
           </div>
 
-          <h1 className="text-3xl font-bold text-slate-900">
-            Admin Login
-          </h1>
-
-          <p className="mt-2 text-slate-500">
-            SBHMS Administration Panel
-          </p>
-        </div>
-
-        {/* Login Card */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          {error && (
-            <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Staff ID */}
+          {/* Login Form */}
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-5"
+          >
+            {/* Admin ID */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label
+                htmlFor="staffId"
+                className="mb-2 block text-sm font-medium text-gray-700"
+              >
                 Admin ID
               </label>
 
               <input
-                type="text"
+                id="staffId"
                 name="staffId"
+                type="text"
                 value={formData.staffId}
                 onChange={handleChange}
-                placeholder="Enter admin ID"
-                required
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                placeholder="Enter Admin ID"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
 
             {/* Password */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label
+                htmlFor="password"
+                className="mb-2 block text-sm font-medium text-gray-700"
+              >
                 Password
               </label>
 
               <input
-                type="password"
+                id="password"
                 name="password"
+                type="password"
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Enter password"
-                required
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
 
-            {/* Login Button */}
+            {/* Error */}
+            {error && (
+              <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+                {error}
+              </div>
+            )}
+
+            {/* Login */}
             <button
               type="submit"
               disabled={loading}
               className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading ? "Signing in..." : "Sign In as Admin"}
+              {loading ? "Logging in..." : "Login"}
             </button>
           </form>
 
           {/* Back */}
           <button
             type="button"
-            onClick={() => navigate("/login")}
-            className="mt-6 w-full text-sm font-medium text-slate-500 transition hover:text-blue-600"
+            onClick={() => navigate("/")}
+            className="mt-6 w-full text-center text-sm text-gray-500 hover:text-blue-600"
           >
-            ← Back to Login Selection
+            ← Back to Login Options
           </button>
-        </div>
 
-        {/* Footer */}
-        <p className="mt-6 text-center text-xs text-slate-400">
-          Smart Birla Hostel Management System
-        </p>
+        </div>
       </div>
     </div>
   );

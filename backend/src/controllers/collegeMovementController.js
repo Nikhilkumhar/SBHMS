@@ -1,9 +1,14 @@
 import CollegeMovement from "../models/CollegeMovement.js";
+import { closeStaleCollegeMovements } from "../services/collegeMovementService.js";
 import Student from "../models/studentModel.js";
 
+// ======================================================
 // RECORD COLLEGE OUT
+// ======================================================
+
 export const recordCollegeOut = async (req, res) => {
   try {
+    await closeStaleCollegeMovements();
     const { sbuId, remarks } = req.body;
 
     if (!sbuId) {
@@ -65,9 +70,13 @@ export const recordCollegeOut = async (req, res) => {
   }
 };
 
+// ======================================================
 // RECORD COLLEGE IN
+// ======================================================
+
 export const recordCollegeIn = async (req, res) => {
   try {
+    await closeStaleCollegeMovements();
     const { sbuId, remarks } = req.body;
 
     if (!sbuId) {
@@ -130,9 +139,13 @@ export const recordCollegeIn = async (req, res) => {
   }
 };
 
+// ======================================================
 // GET ALL COLLEGE MOVEMENTS
+// ======================================================
+
 export const getCollegeMovements = async (req, res) => {
   try {
+
     const movements = await CollegeMovement.find()
       .populate({
         path: "studentId",
@@ -171,9 +184,13 @@ export const getCollegeMovements = async (req, res) => {
   }
 };
 
+// ======================================================
 // GET STUDENTS CURRENTLY OUT
+// ======================================================
+
 export const getStudentsCurrentlyOut = async (req, res) => {
   try {
+    await closeStaleCollegeMovements();
     const movements = await CollegeMovement.find({
       status: "OUT",
     })
@@ -211,7 +228,10 @@ export const getStudentsCurrentlyOut = async (req, res) => {
   }
 };
 
+// ======================================================
 // GET COLLEGE DAILY REPORT
+// ======================================================
+
 export const getCollegeDailyReport = async (req, res) => {
   try {
     const { date } = req.query;
@@ -271,12 +291,14 @@ export const getCollegeDailyReport = async (req, res) => {
     res.status(200).json({
       success: true,
       date,
+
       summary: {
         totalMovements,
         studentsWentOut,
         returnedIn,
         currentlyOut,
       },
+
       movements,
     });
   } catch (error) {
@@ -289,10 +311,18 @@ export const getCollegeDailyReport = async (req, res) => {
   }
 };
 
+// ======================================================
 // MANUAL COLLEGE MOVEMENT CORRECTION
+// ======================================================
+
 export const correctCollegeMovement = async (req, res) => {
   try {
-    const { sbuId, correctionType, correctionReason } = req.body;
+    await closeStaleCollegeMovements();
+    const {
+      sbuId,
+      correctionType,
+      correctionReason,
+    } = req.body;
 
     if (!sbuId) {
       return res.status(400).json({
@@ -333,7 +363,10 @@ export const correctCollegeMovement = async (req, res) => {
 
     const now = new Date();
 
+    // ==================================================
     // MANUALLY MARK STUDENT IN
+    // ==================================================
+
     if (correctionType === "IN") {
       const movement = await CollegeMovement.findOne({
         studentId: student._id,
@@ -343,14 +376,14 @@ export const correctCollegeMovement = async (req, res) => {
       if (!movement) {
         return res.status(400).json({
           success: false,
-          message: "No active college OUT movement found for this student",
+          message:
+            "No active college OUT movement found for this student",
         });
       }
 
       movement.inTime = now;
       movement.status = "IN";
       movement.recordedInBy = req.user.userId;
-
       movement.isCorrected = true;
       movement.correctionReason = correctionReason.trim();
       movement.correctedBy = req.user.userId;
@@ -363,6 +396,7 @@ export const correctCollegeMovement = async (req, res) => {
         message: "College IN corrected successfully",
         correctionType: "IN",
         movement,
+
         student: {
           id: student._id,
           sbuId: student.sbuId,
@@ -371,7 +405,10 @@ export const correctCollegeMovement = async (req, res) => {
       });
     }
 
+    // ==================================================
     // MANUALLY MARK STUDENT OUT
+    // ==================================================
+
     if (correctionType === "OUT") {
       const activeMovement = await CollegeMovement.findOne({
         studentId: student._id,
@@ -391,7 +428,6 @@ export const correctCollegeMovement = async (req, res) => {
         outTime: now,
         status: "OUT",
         recordedOutBy: req.user.userId,
-
         isCorrected: true,
         correctionReason: correctionReason.trim(),
         correctedBy: req.user.userId,
@@ -403,6 +439,7 @@ export const correctCollegeMovement = async (req, res) => {
         message: "College OUT corrected successfully",
         correctionType: "OUT",
         movement,
+
         student: {
           id: student._id,
           sbuId: student.sbuId,
@@ -416,6 +453,83 @@ export const correctCollegeMovement = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error while correcting college movement",
+    });
+  }
+};
+
+// ======================================================
+// GET LOGGED-IN STUDENT COLLEGE MOVEMENTS
+// ======================================================
+
+export const getMyCollegeMovements = async (req, res) => {
+  try {
+    await closeStaleCollegeMovements();
+    // Get logged-in user's ID from JWT
+    const userId = req.user.userId;
+
+    // Find the student connected to this user
+    const student = await Student.findOne({ userId })
+      .populate("userId", "name email phone role")
+      .populate("hostelId", "name code")
+      .populate("roomId", "roomNumber floor capacity");
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student profile not found",
+      });
+    }
+
+    // Get only this student's college movement records
+    const movements = await CollegeMovement.find({
+      studentId: student._id,
+    })
+      .populate("recordedOutBy", "name email role")
+      .populate("recordedInBy", "name email role")
+      .populate("correctedBy", "name email role")
+      .sort({ outTime: -1 });
+
+    // Check if the student is currently OUT
+    const activeMovement = movements.find(
+      (movement) => movement.status === "OUT"
+    );
+
+    res.status(200).json({
+      success: true,
+
+      student: {
+        id: student._id,
+        name: student.userId?.name,
+        sbuId: student.sbuId,
+        email: student.userId?.email,
+        phone: student.userId?.phone,
+        course: student.course,
+        year: student.year,
+
+        hostel: student.hostelId,
+        room: student.roomId,
+      },
+
+      currentStatus: activeMovement
+        ? "OUT"
+        : "IN_HOSTEL",
+
+      activeMovement: activeMovement || null,
+
+      count: movements.length,
+
+      movements,
+    });
+  } catch (error) {
+    console.error(
+      "Get my college movements error:",
+      error
+    );
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Server error while fetching your college movements",
     });
   }
 };

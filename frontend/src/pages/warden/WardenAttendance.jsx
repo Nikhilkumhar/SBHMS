@@ -33,7 +33,7 @@ function WardenAttendance() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
 
   // =====================================================
   // FETCH HOSTELS
@@ -212,61 +212,59 @@ function WardenAttendance() {
   // SUBMIT ATTENDANCE
   // =====================================================
 
-  const handleSubmit = async () => {
+    const handleSubmit = async () => {
     try {
       setSubmitting(true);
       setError("");
       setSuccess("");
 
+      // Send only NEW or CHANGED entries.
+      // Students already saved with the same status are skipped.
       const attendance = roster
-        .filter(
-          (student) =>
-            attendanceStatus[student.studentId]
-        )
+        .filter((student) => {
+          const newStatus = attendanceStatus[student.studentId];
+
+          if (!newStatus) return false;
+
+          const savedStatus =
+            student.attendanceStatus === "NOT_MARKED"
+              ? null
+              : student.attendanceStatus;
+
+          const newRemark = (remarks[student.studentId] || "").trim();
+          const savedRemark = (student.remarks || "").trim();
+
+          return newStatus !== savedStatus || newRemark !== savedRemark;
+        })
         .map((student) => ({
           studentId: student.studentId,
-          status:
-            attendanceStatus[student.studentId],
-          remarks:
-            remarks[student.studentId] || undefined,
+          status: attendanceStatus[student.studentId],
+          remarks: remarks[student.studentId] || undefined,
         }));
 
       if (attendance.length === 0) {
         setError(
-          "Please mark at least one student's attendance."
+          "No new changes to save. Mark a student first, or change a status."
         );
         return;
       }
 
-      const response = await api.post(
-        "/api/attendance/bulk",
-        {
-          hostelId: selectedHostel,
-          date: selectedDate,
-          attendance,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await api.post("/api/attendance/bulk", {
+        hostelId: selectedHostel,
+        date: selectedDate,
+        attendance,
+      });
 
       setSuccess(
-        response.data.message ||
-          "Attendance marked successfully."
+        response.data.message || "Attendance saved successfully."
       );
 
       await fetchRoster();
     } catch (err) {
-      console.error(
-        "Submit attendance error:",
-        err
-      );
+      console.error("Submit attendance error:", err);
 
       setError(
-        err.response?.data?.message ||
-          "Unable to mark attendance."
+        err.response?.data?.message || "Unable to save attendance."
       );
     } finally {
       setSubmitting(false);

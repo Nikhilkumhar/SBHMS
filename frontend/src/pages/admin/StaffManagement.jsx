@@ -31,7 +31,7 @@ function StaffManagement() {
       setLoading(true);
       setError("");
 
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
 
       const response = await api.get("/api/staff", {
         headers: {
@@ -126,7 +126,7 @@ function StaffManagement() {
       setSubmitting(true);
       setError("");
 
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
 
       await api.post("/api/staff", formData, {
         headers: {
@@ -174,7 +174,7 @@ function StaffManagement() {
     if (!confirmed) return;
 
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
 
       await api.patch(
         `/api/staff/${member._id}/status`,
@@ -209,7 +209,7 @@ function StaffManagement() {
     if (!confirmed) return;
 
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
 
       await api.delete(`/api/staff/${member._id}`, {
         headers: {
