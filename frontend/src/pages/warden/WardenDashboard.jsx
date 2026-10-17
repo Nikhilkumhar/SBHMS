@@ -256,8 +256,8 @@ function WardenDashboard() {
       description:
         "View and manage student complaints",
       icon: "🛠️",
-      path: "#",
-      active: false,
+      path: "/warden/complaints",
+      active: true,
     },
     {
       title: "Reports",

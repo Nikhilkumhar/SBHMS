@@ -249,6 +249,15 @@ function StudentDashboard() {
               onClick={() => navigate("/student/attendance")}
             />
 
+            {/* Complaints */}
+            <DashboardCard
+              icon="!"
+              iconStyle="bg-red-100 text-red-600"
+              title="Complaints"
+              description="Report room, water, laundry or ragging issues and track them."
+              onClick={() => navigate("/student/complaints")}
+            />
+
             {/* Notifications */}
             <DashboardCard
               icon="N"

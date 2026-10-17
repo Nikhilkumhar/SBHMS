@@ -149,6 +149,11 @@ function AdminDashboard() {
       path: "/admin/college-movement",
     },
     {
+      name: "Complaints",
+      icon: "🛠️",
+      path: "/admin/complaints",
+    },
+    {
       name: "Reports",
       icon: "▤",
       path: "/admin/reports",
@@ -219,6 +224,13 @@ function AdminDashboard() {
       icon: "🏫",
       path: "/admin/college-movement",
     },
+    {
+      title: "Complaints",
+      description:
+        "Review student complaints, including ragging cases.",
+      icon: "🛠️",
+      path: "/admin/complaints",
+    },
   ];
 
   return (
@@ -251,10 +263,9 @@ function AdminDashboard() {
             border-slate-800
             flex
             items-center
-            ${
-              sidebarExpanded
-                ? "justify-between px-3"
-                : "justify-center px-2"
+            ${sidebarExpanded
+              ? "justify-between px-3"
+              : "justify-center px-2"
             }
           `}
         >
@@ -349,15 +360,13 @@ function AdminDashboard() {
                   flex
                   items-center
                   transition
-                  ${
-                    sidebarExpanded
-                      ? "gap-3 px-3"
-                      : "justify-center"
+                  ${sidebarExpanded
+                    ? "gap-3 px-3"
+                    : "justify-center"
                   }
-                  ${
-                    active
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                  ${active
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
                   }
                 `}
               >
@@ -391,10 +400,9 @@ function AdminDashboard() {
               text-red-300
               hover:bg-red-500/10
               transition
-              ${
-                sidebarExpanded
-                  ? "gap-3 px-3"
-                  : "justify-center"
+              ${sidebarExpanded
+                ? "gap-3 px-3"
+                : "justify-center"
               }
             `}
           >

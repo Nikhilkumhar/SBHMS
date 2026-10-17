@@ -35,11 +35,16 @@ import StudentGatePass from "../pages/student/StudentGatePass";
 import StudentQR from "../pages/student/StudentQR";
 import StudentCollegeMovement from "../pages/student/StudentCollegeMovement";
 import StudentAttendance from "../pages/student/StudentAttendance";
+import StudentComplaints from "../pages/student/StudentComplaints";
 
 /* ================= WARDEN ================= */
 import WardenDashboard from "../pages/warden/WardenDashboard";
 import WardenGatePass from "../pages/warden/WardenGatePass";
 import WardenAttendance from "../pages/warden/WardenAttendance";
+
+/* ================= SHARED (WARDEN + ADMIN) ================= */
+import ComplaintManagement from "../pages/staff/ComplaintManagement";
+
 
 // Small helper so every route is one short line
 const guard = (roles, element) => (
@@ -72,6 +77,7 @@ function AppRoutes() {
         <Route path="/admin/staff" element={guard(ADMIN, <StaffManagement />)} />
         <Route path="/admin/gate-pass" element={guard(ADMIN, <GatePassManagement />)} />
         <Route path="/admin/attendance" element={guard(ADMIN, <AttendanceManagement />)} />
+        <Route path="/admin/complaints" element={guard(ADMIN, <ComplaintManagement />)} />
         <Route
           path="/admin/reports"
           element={guard(ADMIN, <ComingSoon title="Reports" />)}
@@ -89,6 +95,7 @@ function AppRoutes() {
         <Route path="/warden" element={guard(WARDEN, <WardenDashboard />)} />
         <Route path="/warden/gate-pass" element={guard(WARDEN, <WardenGatePass />)} />
         <Route path="/warden/attendance" element={guard(WARDEN, <WardenAttendance />)} />
+        <Route path="/warden/complaints" element={guard(WARDEN, <ComplaintManagement />)} />
         <Route path="/warden/students" element={guard(WARDEN, <StudentManagement />)} />
         <Route path="/warden/students/:id" element={guard(WARDEN, <StudentDetails />)} />
         <Route
@@ -118,6 +125,10 @@ function AppRoutes() {
         <Route
           path="/student/attendance"
           element={guard(STUDENT, <StudentAttendance />)}
+        />
+        <Route
+          path="/student/complaints"
+          element={guard(STUDENT, <StudentComplaints />)}
         />
         <Route
           path="/student/notifications"

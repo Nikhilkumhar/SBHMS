@@ -19,6 +19,7 @@ import studentQrRoutes from "./src/routes/studentQrRoutes.js";
 import collegeScanRoutes from "./src/routes/collegeScanRoutes.js";
 import attendanceRoutes from "./src/routes/attendanceRoutes.js";
 import staffRoutes from "./src/routes/staffRoutes.js";
+import complaintRoutes from "./src/routes/complaintRoutes.js";
 
 // ================= STARTUP CHECKS =================
 
@@ -101,6 +102,7 @@ app.use("/api/student-qr", studentQrRoutes);
 app.use("/api/college", collegeScanRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/staff", staffRoutes);
+app.use("/api/complaints", complaintRoutes);
 
 // ================= 404 FOR UNKNOWN API ROUTES =================
 
